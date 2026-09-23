@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "TruthShield",
+    "slug": "truthshield-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#070b14",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "backgroundColor": "#070b14"
+    }
+  }
+}
