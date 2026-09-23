@@ -37,7 +37,7 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:3000",
-        "*"
+        "http://127.0.0.1:3000"
     ]
     
     # Database URL: SQLite by default for zero-friction local run; PostgreSQL in production
@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     # Model selections
     OPENAI_MODEL: str = "gpt-4o-mini"
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_MODEL: str = "gemini-3.5-flash"
     ANTHROPIC_MODEL: str = "claude-3-5-haiku-20241022"
     AI_REQUEST_TIMEOUT: int = 25  # seconds
     

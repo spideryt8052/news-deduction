@@ -53,13 +53,28 @@ app = FastAPI(
 )
 
 # Configure CORS Middleware
+# Explicitly support localhost and 127.0.0.1 on any port (Vite, Next, mobile preview, etc.)
+_allowed_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173"
+]
+for _o in settings.CORS_ORIGINS:
+    if _o != "*" and _o not in _allowed_origins:
+        _allowed_origins.append(_o)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=_allowed_origins,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Custom Exception Handlers
 @app.exception_handler(RequestValidationError)

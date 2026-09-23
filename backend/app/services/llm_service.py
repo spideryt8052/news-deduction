@@ -183,15 +183,21 @@ class LLMService:
 
     @classmethod
     def call_gemini(cls, prompt_content: str, api_key: Optional[str] = None, model: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        """Invokes Google Gemini REST API."""
+        """Invokes Google Gemini REST API with automated fallback across available model versions."""
         key = cls.get_key_for_provider("gemini", api_key)
         if not key:
             return None
 
-        model_name = model or settings.GEMINI_MODEL
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={key}"
+        # Robust list of models to try in case of model retirement or spikes
+        candidate_models = [model] if model else [
+            settings.GEMINI_MODEL,
+            "gemini-3.5-flash",
+            "gemini-3.6-flash",
+            "gemini-2.5-flash-lite",
+            "gemini-flash-latest"
+        ]
+
         headers = {"Content-Type": "application/json"}
-        
         full_prompt = f"{SYSTEM_PROMPT}\n\nUser Submission to Evaluate:\n{prompt_content}"
         payload = {
             "contents": [
@@ -203,21 +209,27 @@ class LLMService:
             }
         }
 
-        try:
-            with httpx.Client(timeout=settings.AI_REQUEST_TIMEOUT) as client:
-                resp = client.post(url, json=payload, headers=headers)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    candidates = data.get("candidates", [])
-                    if candidates:
-                        part_text = candidates[0]["content"]["parts"][0]["text"]
-                        return extract_json_from_text(part_text)
-                else:
-                    print(f"Gemini API Error {resp.status_code}: {resp.text}")
-                    return None
-        except Exception as e:
-            print(f"Gemini invocation failed: {str(e)}")
-            return None
+        for model_name in candidate_models:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={key}"
+            try:
+                with httpx.Client(timeout=settings.AI_REQUEST_TIMEOUT) as client:
+                    resp = client.post(url, json=payload, headers=headers)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        candidates = data.get("candidates", [])
+                        if candidates:
+                            part_text = candidates[0]["content"]["parts"][0]["text"]
+                            return extract_json_from_text(part_text)
+                    else:
+                        print(f"Gemini ({model_name}) API Warning {resp.status_code}: {resp.text[:150]}")
+                        # Continue to next candidate model if 404 (not found), 503 (demand spike), or 429
+                        continue
+            except Exception as e:
+                print(f"Gemini ({model_name}) invocation exception: {str(e)}")
+                continue
+
+        return None
+
 
     @classmethod
     def call_openai(cls, prompt_content: str, api_key: Optional[str] = None, model: Optional[str] = None) -> Optional[Dict[str, Any]]:
@@ -307,7 +319,7 @@ class LLMService:
         elif provider_clean == "gemini":
             res = cls.call_gemini(test_prompt, api_key=api_key)
             if res:
-                return True, "Google Gemini API key verified successfully! (Model: Gemini 1.5 Flash)"
+                return True, "Google Gemini API key verified successfully! (Model: Gemini 3.5 Flash)"
             return False, "Failed to authenticate with Google Gemini. Please check your API key."
             
         elif provider_clean == "openai":

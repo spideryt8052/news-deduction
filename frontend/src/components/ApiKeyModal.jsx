@@ -13,7 +13,7 @@ import {
   RefreshCw,
   Cpu
 } from 'lucide-react';
-import api, { getStoredAiConfig, setStoredAiConfig, clearStoredAiConfig } from '../services/api';
+import api, { getStoredAiConfig, setStoredAiConfig, clearStoredAiConfig, formatApiError } from '../services/api';
 
 const PROVIDERS = [
   {
@@ -29,14 +29,14 @@ const PROVIDERS = [
   },
   {
     id: 'gemini',
-    name: 'Google Gemini (1.5 Flash)',
+    name: 'Google Gemini (3.5 Flash)',
     badge: 'Free Tier',
     badgeColor: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
     description: 'High-speed Google multimodal model with generous free request quotas.',
     keyPrefix: 'AIzaSy',
     keyUrl: 'https://aistudio.google.com/app/apikey',
     keyPlaceholder: 'AIzaSy...',
-    model: 'gemini-1.5-flash',
+    model: 'gemini-3.5-flash',
   },
   {
     id: 'openai',
@@ -133,7 +133,7 @@ export default function ApiKeyModal({ isOpen, onClose, onConfigSaved }) {
     } catch (err) {
       setTestResult({
         success: false,
-        message: err.response?.data?.detail || err.message || 'Connection test failed.'
+        message: formatApiError(err)
       });
     } finally {
       setTesting(false);

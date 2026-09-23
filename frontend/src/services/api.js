@@ -55,8 +55,8 @@ export const formatApiError = (error) => {
     }
     if (data?.message) return data.message;
     return `Server error (${error.response.status}): ${error.response.statusText}`;
-  } else if (error.request) {
-    return 'FastAPI backend is currently unreachable. Make sure the server is running on port 8000.';
+  } else if (error.request || error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+    return 'Backend server is unreachable on port 8000. Please ensure the backend is running (e.g., uvicorn app.main:app --reload).';
   } else {
     return error.message || 'An unexpected error occurred.';
   }
