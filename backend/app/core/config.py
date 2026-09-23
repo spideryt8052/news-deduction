@@ -1,5 +1,29 @@
+import os
+from pathlib import Path
 from typing import List
 from pydantic_settings import BaseSettings
+
+# Absolute directories for bulletproof .env resolution
+BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+ROOT_DIR = BACKEND_DIR.parent
+
+ENV_PATHS = [
+    str(BACKEND_DIR / ".env"),
+    str(ROOT_DIR / ".env"),
+    ".env"
+]
+
+# Pre-parse non-empty variables from root and backend .env files
+_file_values = {}
+try:
+    from dotenv import dotenv_values
+    for _p in [ROOT_DIR / ".env", BACKEND_DIR / ".env"]:
+        if _p.is_file():
+            for _k, _v in dotenv_values(_p).items():
+                if _v is not None and str(_v).strip() != "":
+                    _file_values[_k] = str(_v).strip()
+except Exception:
+    pass
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "TruthShield: Social Media & Misleading Information Platform"
@@ -21,6 +45,9 @@ class Settings(BaseSettings):
     
     # AI Engine Provider: "auto", "groq", "gemini", "openai", "anthropic", or "mock"
     AI_PROVIDER: str = "auto"
+    
+    # Keys from .env
+    API_KEY: str = ""
     OPENAI_API_KEY: str = ""
     GROQ_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
@@ -31,10 +58,16 @@ class Settings(BaseSettings):
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
     GEMINI_MODEL: str = "gemini-1.5-flash"
     ANTHROPIC_MODEL: str = "claude-3-5-haiku-20241022"
-    AI_REQUEST_TIMEOUT: int = 20  # seconds
+    AI_REQUEST_TIMEOUT: int = 25  # seconds
     
     class Config:
-        env_file = ".env"
+        env_file = ENV_PATHS
         extra = "allow"
 
 settings = Settings()
+
+# Ensure any non-empty key found in root .env or backend .env is assigned if currently empty
+for _k, _v in _file_values.items():
+    if hasattr(settings, _k) and not getattr(settings, _k):
+        setattr(settings, _k, _v)
+

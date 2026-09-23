@@ -25,15 +25,8 @@ class TestKeyResponse(BaseModel):
 
 @router.get("/health", summary="Service health check")
 async def health_check():
-    configured_keys = []
-    if settings.GROQ_API_KEY:
-        configured_keys.append("groq")
-    if settings.GEMINI_API_KEY:
-        configured_keys.append("gemini")
-    if settings.OPENAI_API_KEY:
-        configured_keys.append("openai")
-    if settings.ANTHROPIC_API_KEY:
-        configured_keys.append("anthropic")
+    keys_status = LLMService.get_active_keys_status()
+    configured_keys = [k for k, v in keys_status.items() if v]
 
     return {
         "status": "online",
@@ -50,12 +43,7 @@ async def health_check():
 
 @router.get("/config/ai-status", summary="Get AI provider status and active configuration")
 async def get_ai_status():
-    keys_status = {
-        "groq": bool(settings.GROQ_API_KEY),
-        "gemini": bool(settings.GEMINI_API_KEY),
-        "openai": bool(settings.OPENAI_API_KEY),
-        "anthropic": bool(settings.ANTHROPIC_API_KEY)
-    }
+    keys_status = LLMService.get_active_keys_status()
     
     # Determine default effective provider
     effective = settings.AI_PROVIDER

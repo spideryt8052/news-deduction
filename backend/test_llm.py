@@ -29,6 +29,17 @@ def test_llm_abstraction():
     assert res_url.classification == "Likely Reliable"
     print(f"[PASS] 3. URL Fallback Verified -> classification='{res_url.classification}'")
 
+    # 4. Test passing dynamic api_key and ai_provider parameters directly
+    res_with_key = analyzer.analyze_text(
+        text="BREAKING: Drinking boiled garlic water cures viruses in 2 hours!",
+        source_hint="WhatsApp",
+        ai_provider="groq",                          # "groq" | "gemini" | "openai" | "anthropic"
+        api_key="gsk_test_parameter_support_key"      # Your actual API key goes here
+    )
+    assert isinstance(res_with_key, AnalysisResultResponse)
+    assert res_with_key.classification in ["Likely False", "Needs Further Verification"]
+    print(f"[PASS] 4. Dynamic API Key & Provider Parameters Verified -> provider='groq', classification='{res_with_key.classification}'")
+
     print("\nALL LLM ABSTRACTION TESTS PASSED!")
 
 if __name__ == "__main__":

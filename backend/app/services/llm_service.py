@@ -1,3 +1,4 @@
+import os
 import json
 import re
 import httpx
@@ -81,9 +82,72 @@ class LLMService:
     """Manages prompt formatting, provider routing, multi-LLM execution, and structured parsing."""
 
     @classmethod
+    def detect_provider_from_key(cls, key: str) -> Optional[str]:
+        """Auto-detects the provider name based on standard API key prefixes."""
+        if not key or not isinstance(key, str):
+            return None
+        k = key.strip()
+        if k.startswith("gsk_"):
+            return "groq"
+        elif k.startswith("AIzaSy"):
+            return "gemini"
+        elif k.startswith("sk-ant-"):
+            return "anthropic"
+        elif k.startswith("sk-"):
+            return "openai"
+        return None
+
+    @classmethod
+    def get_key_for_provider(cls, provider: str, explicit_key: Optional[str] = None) -> Optional[str]:
+        """Resolves the appropriate API key for a provider across parameters and .env."""
+        if explicit_key and explicit_key.strip():
+            return explicit_key.strip()
+        
+        provider = provider.lower()
+        if provider == "groq":
+            if settings.GROQ_API_KEY:
+                return settings.GROQ_API_KEY.strip()
+            if settings.API_KEY and (settings.API_KEY.startswith("gsk_") or settings.AI_PROVIDER == "groq"):
+                return settings.API_KEY.strip()
+            return os.environ.get("GROQ_API_KEY") or (os.environ.get("API_KEY") if os.environ.get("API_KEY", "").startswith("gsk_") else None)
+
+        elif provider == "gemini":
+            if settings.GEMINI_API_KEY:
+                return settings.GEMINI_API_KEY.strip()
+            if settings.API_KEY and (settings.API_KEY.startswith("AIzaSy") or settings.AI_PROVIDER == "gemini"):
+                return settings.API_KEY.strip()
+            return os.environ.get("GEMINI_API_KEY") or (os.environ.get("API_KEY") if os.environ.get("API_KEY", "").startswith("AIzaSy") else None)
+
+        elif provider == "openai":
+            if settings.OPENAI_API_KEY:
+                return settings.OPENAI_API_KEY.strip()
+            if settings.API_KEY and (settings.API_KEY.startswith("sk-") and not settings.API_KEY.startswith("sk-ant-") or settings.AI_PROVIDER == "openai"):
+                return settings.API_KEY.strip()
+            return os.environ.get("OPENAI_API_KEY") or (os.environ.get("API_KEY") if (os.environ.get("API_KEY", "").startswith("sk-") and not os.environ.get("API_KEY", "").startswith("sk-ant-")) else None)
+
+        elif provider == "anthropic":
+            if settings.ANTHROPIC_API_KEY:
+                return settings.ANTHROPIC_API_KEY.strip()
+            if settings.API_KEY and (settings.API_KEY.startswith("sk-ant-") or settings.AI_PROVIDER == "anthropic"):
+                return settings.API_KEY.strip()
+            return os.environ.get("ANTHROPIC_API_KEY") or (os.environ.get("API_KEY") if os.environ.get("API_KEY", "").startswith("sk-ant-") else None)
+
+        return None
+
+    @classmethod
+    def get_active_keys_status(cls) -> Dict[str, bool]:
+        """Returns dict of which AI providers currently have valid credentials configured."""
+        return {
+            "groq": bool(cls.get_key_for_provider("groq")),
+            "gemini": bool(cls.get_key_for_provider("gemini")),
+            "openai": bool(cls.get_key_for_provider("openai")),
+            "anthropic": bool(cls.get_key_for_provider("anthropic"))
+        }
+
+    @classmethod
     def call_groq(cls, prompt_content: str, api_key: Optional[str] = None, model: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Invokes Groq API with ultra-fast Llama-3 model."""
-        key = api_key or settings.GROQ_API_KEY
+        key = cls.get_key_for_provider("groq", api_key)
         if not key:
             return None
 
@@ -120,7 +184,7 @@ class LLMService:
     @classmethod
     def call_gemini(cls, prompt_content: str, api_key: Optional[str] = None, model: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Invokes Google Gemini REST API."""
-        key = api_key or settings.GEMINI_API_KEY
+        key = cls.get_key_for_provider("gemini", api_key)
         if not key:
             return None
 
@@ -158,7 +222,7 @@ class LLMService:
     @classmethod
     def call_openai(cls, prompt_content: str, api_key: Optional[str] = None, model: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Invokes OpenAI API with GPT model."""
-        key = api_key or settings.OPENAI_API_KEY
+        key = cls.get_key_for_provider("openai", api_key)
         if not key:
             return None
 
@@ -195,7 +259,7 @@ class LLMService:
     @classmethod
     def call_anthropic(cls, prompt_content: str, api_key: Optional[str] = None, model: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Invokes Anthropic Claude API."""
-        key = api_key or settings.ANTHROPIC_API_KEY
+        key = cls.get_key_for_provider("anthropic", api_key)
         if not key:
             return None
 
@@ -288,13 +352,14 @@ class LLMService:
                 # Auto-detect available keys in priority order
                 # If a client passed an api_key without specifying provider, auto-detect by prefix:
                 if api_key:
-                    if api_key.startswith("gsk_"):
+                    detected = cls.detect_provider_from_key(api_key)
+                    if detected == "groq":
                         result = cls.call_groq(prompt, api_key=api_key)
-                    elif api_key.startswith("AIzaSy"):
+                    elif detected == "gemini":
                         result = cls.call_gemini(prompt, api_key=api_key)
-                    elif api_key.startswith("sk-ant-"):
+                    elif detected == "anthropic":
                         result = cls.call_anthropic(prompt, api_key=api_key)
-                    elif api_key.startswith("sk-"):
+                    elif detected == "openai":
                         result = cls.call_openai(prompt, api_key=api_key)
                     else:
                         # Try Groq, then Gemini, then OpenAI
@@ -304,15 +369,22 @@ class LLMService:
                             cls.call_openai(prompt, api_key=api_key)
                         )
                 else:
-                    # Check server-side configured keys
-                    if settings.GROQ_API_KEY:
+                    # Check configured keys from .env in preferred order (Groq -> Gemini -> OpenAI -> Anthropic)
+                    if cls.get_key_for_provider("groq"):
                         result = cls.call_groq(prompt)
-                    elif settings.GEMINI_API_KEY:
+                    elif cls.get_key_for_provider("gemini"):
                         result = cls.call_gemini(prompt)
-                    elif settings.OPENAI_API_KEY:
+                    elif cls.get_key_for_provider("openai"):
                         result = cls.call_openai(prompt)
-                    elif settings.ANTHROPIC_API_KEY:
+                    elif cls.get_key_for_provider("anthropic"):
                         result = cls.call_anthropic(prompt)
+                    elif settings.API_KEY:
+                        # Fallback for generic key
+                        result = (
+                            cls.call_groq(prompt, api_key=settings.API_KEY) or
+                            cls.call_gemini(prompt, api_key=settings.API_KEY) or
+                            cls.call_openai(prompt, api_key=settings.API_KEY)
+                        )
 
         except Exception as e:
             print(f"LLM API invocation error: {str(e)}")
