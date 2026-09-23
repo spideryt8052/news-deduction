@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   FileText, 
   Link2, 
@@ -10,9 +10,17 @@ import {
   X, 
   ArrowRight,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  Mic,
+  MicOff,
+  Zap,
+  Cpu,
+  Settings,
+  Globe
 } from 'lucide-react';
-import api from '../services/api';
+import api, { getStoredAiConfig } from '../services/api';
+import voiceService from '../services/voiceService';
+import ApiKeyModal from './ApiKeyModal';
 
 const SAMPLE_PRESETS = [
   {
@@ -37,18 +45,76 @@ const SAMPLE_PRESETS = [
   }
 ];
 
-export default function AnalyzeBox({ onAnalysisComplete }) {
+export default function AnalyzeBox({ onAnalysisComplete, initialText = '' }) {
   const [activeTab, setActiveTab] = useState('text'); // 'text' | 'url' | 'image'
-  const [inputText, setInputText] = useState('');
+  const [inputText, setInputText] = useState(initialText || '');
   const [inputUrl, setInputUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+
+  useEffect(() => {
+    if (initialText) {
+      setInputText(initialText);
+      setActiveTab('text');
+    }
+  }, [initialText]);
   
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState('');
   const [error, setError] = useState(null);
 
+  // Voice Assistance State
+  const [isRecording, setIsRecording] = useState(false);
+  const [voiceLang, setVoiceLang] = useState('en-US'); // 'en-US' | 'en-IN' | 'hi-IN'
+
+  // AI Configuration State
+  const [showKeyModal, setShowKeyModal] = useState(false);
+  const [aiConfig, setAiConfig] = useState(getStoredAiConfig());
+  const [serverAiInfo, setServerAiInfo] = useState(null);
+
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    // Check server AI status
+    api.getAiStatus()
+      .then(info => setServerAiInfo(info))
+      .catch(() => {});
+  }, []);
+
+  // Clean up recording on unmount
+  useEffect(() => {
+    return () => {
+      voiceService.stopListening();
+    };
+  }, []);
+
+  const baseTextRef = useRef('');
+
+  const handleStartVoiceInput = () => {
+    setError(null);
+    baseTextRef.current = inputText.trim();
+    voiceService.startListening({
+      lang: voiceLang,
+      onStart: () => setIsRecording(true),
+      onEnd: () => setIsRecording(false),
+      onError: (err) => {
+        setIsRecording(false);
+        setError(`Microphone error: ${err}`);
+      },
+      onResult: ({ combined }) => {
+        if (combined) {
+          const prefix = baseTextRef.current;
+          setInputText(prefix ? `${prefix} ${combined}` : combined);
+        }
+      }
+    });
+  };
+
+  const handleStopVoiceInput = () => {
+    voiceService.stopListening();
+    setIsRecording(false);
+    baseTextRef.current = '';
+  };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -87,6 +153,11 @@ export default function AnalyzeBox({ onAnalysisComplete }) {
     e.preventDefault();
     setError(null);
 
+    // Stop recording if running
+    if (isRecording) {
+      handleStopVoiceInput();
+    }
+
     if (activeTab === 'text' && (!inputText || inputText.trim().length < 5)) {
       setError('Please provide at least 5 characters of text to analyze.');
       return;
@@ -103,13 +174,13 @@ export default function AnalyzeBox({ onAnalysisComplete }) {
     setLoading(true);
 
     try {
-      setCurrentStep('1. Preprocessing input data...');
-      await new Promise(r => setTimeout(r, 400));
+      setCurrentStep('1. Preprocessing input data & linguistic features...');
+      await new Promise(r => setTimeout(r, 350));
 
-      setCurrentStep('2. Extracting verifiable claims...');
-      await new Promise(r => setTimeout(r, 400));
+      setCurrentStep('2. Extracting verifiable claims & isolating facts...');
+      await new Promise(r => setTimeout(r, 350));
 
-      setCurrentStep('3. Cross-referencing source credibility & evidence...');
+      setCurrentStep('3. Checking source domain reputation & SSRF bounds...');
 
       let response;
       if (activeTab === 'text') {
@@ -122,8 +193,8 @@ export default function AnalyzeBox({ onAnalysisComplete }) {
         response = await api.analyzeImage(formData);
       }
 
-      setCurrentStep('4. Formulating AI assessment report...');
-      await new Promise(r => setTimeout(r, 300));
+      setCurrentStep('4. Formulating explanation-first assessment report...');
+      await new Promise(r => setTimeout(r, 250));
 
       const payload = response.data ? response.data : response;
       if (onAnalysisComplete) {
@@ -237,18 +308,51 @@ export default function AnalyzeBox({ onAnalysisComplete }) {
     };
   };
 
+  // Helper label for AI Provider
+  const getProviderLabel = () => {
+    if (aiConfig.apiKey) {
+      if (aiConfig.provider === 'groq') return '⚡ Groq Llama-3.3 (Live)';
+      if (aiConfig.provider === 'gemini') return '🤖 Gemini 1.5 (Live)';
+      if (aiConfig.provider === 'openai') return '✨ OpenAI GPT-4o (Live)';
+      if (aiConfig.provider === 'anthropic') return '🧠 Claude 3.5 (Live)';
+      return '⚡ Custom AI Key Active';
+    }
+    if (serverAiInfo?.effective_provider && serverAiInfo.effective_provider !== 'mock') {
+      return `🟢 Server ${serverAiInfo.effective_provider.toUpperCase()} (Live)`;
+    }
+    return '🛡️ Heuristic Engine (Offline)';
+  };
+
   return (
     <div className="w-full max-w-3xl mx-auto">
       
       {/* Container Box */}
       <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl relative">
         
+        {/* Top Header: AI Provider Pill & Quick Settings */}
+        <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setShowKeyModal(true)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-xs font-semibold text-slate-300 hover:text-white transition-all cursor-pointer shadow-sm group"
+            title="Configure AI API Key (Groq, Gemini, OpenAI)"
+          >
+            <Zap className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
+            <span>{getProviderLabel()}</span>
+            <Settings className="w-3 h-3 text-slate-400" />
+          </button>
+
+          <div className="text-[11px] text-slate-400 font-medium">
+            AKTU/GNIOT Credibility Workbench
+          </div>
+        </div>
+
         {/* Tab Selection */}
         <div className="flex items-center space-x-2 p-1.5 rounded-2xl bg-dark-900/90 border border-white/10 mb-6 max-w-md mx-auto">
           <button
             type="button"
             onClick={() => { setActiveTab('text'); setError(null); }}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
               activeTab === 'text'
                 ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/20'
                 : 'text-slate-400 hover:text-white'
@@ -261,7 +365,7 @@ export default function AnalyzeBox({ onAnalysisComplete }) {
           <button
             type="button"
             onClick={() => { setActiveTab('url'); setError(null); }}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
               activeTab === 'url'
                 ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/20'
                 : 'text-slate-400 hover:text-white'
@@ -274,7 +378,7 @@ export default function AnalyzeBox({ onAnalysisComplete }) {
           <button
             type="button"
             onClick={() => { setActiveTab('image'); setError(null); }}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
               activeTab === 'image'
                 ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/20'
                 : 'text-slate-400 hover:text-white'
@@ -288,13 +392,65 @@ export default function AnalyzeBox({ onAnalysisComplete }) {
         {/* Input Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           
-          {/* TAB 1: TEXT */}
+          {/* TAB 1: TEXT WITH VOICE ASSISTANCE */}
           {activeTab === 'text' && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-slate-400 px-1">
-                <span>Paste social media message, WhatsApp forward, or news headline:</span>
-                <span>{inputText.length} / 5,000 chars</span>
+              <div className="flex items-center justify-between text-xs text-slate-400 px-1 flex-wrap gap-2">
+                <span>Paste social media message or speak your claim:</span>
+                
+                {/* Voice Control Bar */}
+                <div className="flex items-center gap-2">
+                  <select
+                    value={voiceLang}
+                    onChange={(e) => setVoiceLang(e.target.value)}
+                    className="bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-[11px] text-slate-300 focus:outline-none"
+                    title="Voice Recognition Language"
+                  >
+                    <option value="en-US">EN (US)</option>
+                    <option value="en-IN">EN (India)</option>
+                    <option value="hi-IN">HI (हिंदी)</option>
+                  </select>
+
+                  {!isRecording ? (
+                    <button
+                      type="button"
+                      onClick={handleStartVoiceInput}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-xs font-semibold transition-all cursor-pointer"
+                      title="Speak into microphone"
+                    >
+                      <Mic className="w-3.5 h-3.5" />
+                      <span>Voice Input</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleStopVoiceInput}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 text-xs font-bold animate-pulse transition-all cursor-pointer"
+                      title="Click to stop listening"
+                    >
+                      <MicOff className="w-3.5 h-3.5 text-rose-400" />
+                      <span>Listening... (Stop)</span>
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Pulsing Voice Listening Indicator */}
+              {isRecording && (
+                <div className="p-3 rounded-xl bg-rose-950/20 border border-rose-500/30 flex items-center justify-between text-xs text-rose-300 animate-fade-in">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+                    <span className="font-semibold">Microphone active. Speak your claim clearly...</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="w-1 h-3 bg-rose-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1 h-4 bg-rose-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1 h-2 bg-rose-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <span className="w-1 h-5 bg-rose-400 animate-bounce" style={{ animationDelay: '450ms' }} />
+                  </div>
+                </div>
+              )}
+
               <textarea
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
@@ -303,6 +459,9 @@ export default function AnalyzeBox({ onAnalysisComplete }) {
                 className="w-full p-4 rounded-2xl bg-dark-900/80 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all text-sm leading-relaxed"
                 maxLength={5000}
               />
+              <div className="text-right text-[11px] text-slate-500 px-1">
+                {inputText.length} / 5,000 characters
+              </div>
             </div>
           )}
 
@@ -390,7 +549,7 @@ export default function AnalyzeBox({ onAnalysisComplete }) {
             <div className="p-4 rounded-2xl bg-dark-900/90 border border-cyan-500/30 text-cyan-300 text-xs flex items-center space-x-3">
               <Loader2 className="w-5 h-5 animate-spin text-cyan-400 flex-shrink-0" />
               <div className="space-y-0.5">
-                <span className="font-semibold block text-white">Running AI Pipeline</span>
+                <span className="font-semibold block text-white">Running AI Verification Pipeline</span>
                 <span className="text-slate-400">{currentStep}</span>
               </div>
             </div>
@@ -410,7 +569,7 @@ export default function AnalyzeBox({ onAnalysisComplete }) {
             ) : (
               <>
                 <Sparkles className="w-4 h-4 text-cyan-200 group-hover:rotate-12 transition-transform" />
-                <span>Analyze Information</span>
+                <span>Analyze Information Now</span>
               </>
             )}
           </button>
@@ -427,7 +586,7 @@ export default function AnalyzeBox({ onAnalysisComplete }) {
                 key={idx}
                 type="button"
                 onClick={() => handlePresetSelect(preset)}
-                className="px-2.5 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-700 text-xs text-slate-300 border border-white/5 hover:border-cyan-500/30 transition-all flex items-center gap-1"
+                className="px-2.5 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-700 text-xs text-slate-300 border border-white/5 hover:border-cyan-500/30 transition-all flex items-center gap-1 cursor-pointer"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
                 <span>{preset.label}</span>
@@ -437,6 +596,15 @@ export default function AnalyzeBox({ onAnalysisComplete }) {
         </div>
 
       </div>
+
+      {/* API Key Configuration Modal */}
+      <ApiKeyModal
+        isOpen={showKeyModal}
+        onClose={() => setShowKeyModal(false)}
+        onConfigSaved={(newConfig) => {
+          setAiConfig(newConfig);
+        }}
+      />
 
     </div>
   );

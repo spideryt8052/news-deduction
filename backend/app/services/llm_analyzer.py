@@ -1,17 +1,18 @@
 import uuid
 import datetime
-from typing import Optional
+from typing import Optional, List
 
 from app.services.base_analyzer import BaseAnalyzer
 from app.services.mock_analyzer import MockAnalyzer
 from app.services.llm_service import LLMService
 from app.schemas.analysis import (
     AnalysisResultResponse,
-    SourceAssessment
+    SourceAssessment,
+    EvidenceItem
 )
 
 class LLMAnalyzer(BaseAnalyzer):
-    """Production AI Analyzer utilizing Generative LLMs (Groq Llama-3 / OpenAI).
+    """Production AI Analyzer utilizing Generative LLMs (Groq / Gemini / OpenAI / Anthropic).
     
     Provides transparent explainability, structured JSON output, and automatic
     fallback to MockAnalyzer if network or API keys are unavailable.
@@ -20,10 +21,21 @@ class LLMAnalyzer(BaseAnalyzer):
     def __init__(self):
         self._fallback_analyzer = MockAnalyzer()
 
-    def analyze_text(self, text: str, source_hint: Optional[str] = None) -> AnalysisResultResponse:
-        llm_data = LLMService.generate_assessment(text, context_type="social media post / headline")
+    def analyze_text(
+        self, 
+        text: str, 
+        source_hint: Optional[str] = None,
+        ai_provider: Optional[str] = None,
+        api_key: Optional[str] = None
+    ) -> AnalysisResultResponse:
+        llm_data = LLMService.generate_assessment(
+            text, 
+            context_type="social media post / headline",
+            provider=ai_provider,
+            api_key=api_key
+        )
 
-        # Fallback to MockAnalyzer if LLM call returns None
+        # Fallback to MockAnalyzer if LLM call returns None or missing classification
         if not llm_data or "classification" not in llm_data:
             return self._fallback_analyzer.analyze_text(text, source_hint)
 
@@ -32,10 +44,24 @@ class LLMAnalyzer(BaseAnalyzer):
 
         src_data = llm_data.get("source_assessment", {})
         source_dto = SourceAssessment(
-            source=src_data.get("source", source_hint or "Unverified Forward"),
+            source=src_data.get("source", source_hint or "Forwarded Social Media Content"),
             credibility=src_data.get("credibility", "Needs Verification"),
-            details=src_data.get("details", "Evaluated via Generative AI assessment pipeline.")
+            details=src_data.get("details", f"Evaluated via Generative AI assessment pipeline ({ai_provider or 'LLM'}).")
         )
+
+        # Process evidence items
+        evidence_items: List[EvidenceItem] = []
+        for ev in llm_data.get("evidence", []):
+            try:
+                evidence_items.append(EvidenceItem(
+                    title=ev.get("title", "Reference Source"),
+                    snippet=ev.get("snippet", ""),
+                    source_name=ev.get("source_name", "Fact-Checking Registry"),
+                    stance=ev.get("stance", "CONTEXTUAL"),
+                    url=ev.get("url")
+                ))
+            except Exception:
+                pass
 
         return AnalysisResultResponse(
             id=analysis_id,
@@ -44,15 +70,25 @@ class LLMAnalyzer(BaseAnalyzer):
             confidence=round(float(llm_data.get("confidence", 0.75)), 2),
             summary=llm_data.get("summary", "AI-assisted credibility assessment."),
             claim=llm_data.get("claim", text[:140]),
-            evidence=[],
+            evidence=evidence_items,
             source_assessment=source_dto,
-            reasons=llm_data.get("reasons", ["Linguistic evaluation completed."]),
+            reasons=llm_data.get("reasons", ["Linguistic and factual context examined."]),
             recommendation=llm_data.get("recommendation", "Verify with independent sources before forwarding."),
             created_at=created_at
         )
 
-    def analyze_url(self, url: str) -> AnalysisResultResponse:
-        llm_data = LLMService.generate_assessment(url, context_type="web article URL")
+    def analyze_url(
+        self, 
+        url: str,
+        ai_provider: Optional[str] = None,
+        api_key: Optional[str] = None
+    ) -> AnalysisResultResponse:
+        llm_data = LLMService.generate_assessment(
+            url, 
+            context_type="web article URL",
+            provider=ai_provider,
+            api_key=api_key
+        )
 
         if not llm_data or "classification" not in llm_data:
             return self._fallback_analyzer.analyze_url(url)
@@ -64,8 +100,21 @@ class LLMAnalyzer(BaseAnalyzer):
         source_dto = SourceAssessment(
             source=src_data.get("source", url),
             credibility=src_data.get("credibility", "Independent / Unverified"),
-            details=src_data.get("details", "Evaluated via Generative AI domain analysis.")
+            details=src_data.get("details", f"Evaluated via Generative AI domain analysis ({ai_provider or 'LLM'}).")
         )
+
+        evidence_items: List[EvidenceItem] = []
+        for ev in llm_data.get("evidence", []):
+            try:
+                evidence_items.append(EvidenceItem(
+                    title=ev.get("title", "Reference Source"),
+                    snippet=ev.get("snippet", ""),
+                    source_name=ev.get("source_name", "Accredited Agency"),
+                    stance=ev.get("stance", "CONTEXTUAL"),
+                    url=ev.get("url")
+                ))
+            except Exception:
+                pass
 
         return AnalysisResultResponse(
             id=analysis_id,
@@ -74,17 +123,25 @@ class LLMAnalyzer(BaseAnalyzer):
             confidence=round(float(llm_data.get("confidence", 0.75)), 2),
             summary=llm_data.get("summary", f"AI assessment for URL ({url})."),
             claim=llm_data.get("claim", f"Article at {url}"),
-            evidence=[],
+            evidence=evidence_items,
             source_assessment=source_dto,
-            reasons=llm_data.get("reasons", ["Domain reputation and content examined."]),
+            reasons=llm_data.get("reasons", ["Domain reputation and publisher transparency analyzed."]),
             recommendation=llm_data.get("recommendation", "Confirm with established news outlets."),
             created_at=created_at
         )
 
-    def analyze_image(self, extracted_text: str, filename: str) -> AnalysisResultResponse:
+    def analyze_image(
+        self, 
+        extracted_text: str, 
+        filename: str,
+        ai_provider: Optional[str] = None,
+        api_key: Optional[str] = None
+    ) -> AnalysisResultResponse:
         result = self.analyze_text(
             text=extracted_text, 
-            source_hint=f"Screenshot ({filename})"
+            source_hint=f"Screenshot ({filename})",
+            ai_provider=ai_provider,
+            api_key=api_key
         )
         result.input_type = "image"
         return result

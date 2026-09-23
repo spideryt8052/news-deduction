@@ -1,31 +1,27 @@
+from typing import Optional
 from app.core.config import settings
 from app.services.base_analyzer import BaseAnalyzer
 from app.services.mock_analyzer import MockAnalyzer
 
-_analyzer_instance: BaseAnalyzer = None
+_default_analyzer_instance: Optional[BaseAnalyzer] = None
 
-def get_analyzer() -> BaseAnalyzer:
+def get_analyzer(ai_provider: Optional[str] = None, api_key: Optional[str] = None) -> BaseAnalyzer:
     """Factory dependency providing the active Misinformation Analysis Engine.
     
-    Supports seamless switching between MockAnalyzer, MLAnalyzer, and LLMAnalyzer
-    configured via the AI_PROVIDER environment variable.
+    Supports dynamic switching between MockAnalyzer and LLMAnalyzer
+    configured via environment variables or runtime request overrides.
     """
-    global _analyzer_instance
-    if _analyzer_instance is not None:
-        return _analyzer_instance
+    global _default_analyzer_instance
 
-    provider = settings.AI_PROVIDER.lower()
-    
-    if provider in ["mock", "demo", "offline"]:
-        _analyzer_instance = MockAnalyzer()
-    elif provider in ["llm", "groq", "openai", "anthropic"]:
-        # Lazily imported in Phase 8
-        try:
-            from app.services.llm_analyzer import LLMAnalyzer
-            _analyzer_instance = LLMAnalyzer()
-        except ImportError:
-            _analyzer_instance = MockAnalyzer()
-    else:
-        _analyzer_instance = MockAnalyzer()
+    target_provider = (ai_provider or settings.AI_PROVIDER).lower()
 
-    return _analyzer_instance
+    # If explicit mock/offline requested and no api key provided
+    if target_provider in ["mock", "demo", "offline"] and not api_key:
+        return MockAnalyzer()
+
+    # If api_key or live provider requested
+    try:
+        from app.services.llm_analyzer import LLMAnalyzer
+        return LLMAnalyzer()
+    except Exception:
+        return MockAnalyzer()

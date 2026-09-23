@@ -2,34 +2,78 @@ from typing import Dict, Any, List, Optional
 from app.schemas.analysis import AnalysisResultResponse
 from app.services.analyzer_factory import get_analyzer
 
-# In-memory storage for analysis results (synced with PostgreSQL in Phase 7)
+# In-memory storage for analysis results (synced with PostgreSQL/SQLite)
 ANALYSIS_CACHE: Dict[str, Dict[str, Any]] = {}
 
 class PipelineOrchestrator:
     """Coordinates the full 6-stage analysis workflow from the MCA synopsis.
     
     Acts as the single point of entry for the API layer while delegating
-    to pluggable analysis engines (MockAnalyzer or LLMAnalyzer).
+    to pluggable analysis engines (MockAnalyzer or LLMAnalyzer) with optional
+    runtime client API key / provider overrides.
     """
 
     @classmethod
-    def analyze_text(cls, text: str, source_hint: Optional[str] = None) -> AnalysisResultResponse:
-        analyzer = get_analyzer()
-        result = analyzer.analyze_text(text=text, source_hint=source_hint)
+    def analyze_text(
+        cls, 
+        text: str, 
+        source_hint: Optional[str] = None,
+        ai_provider: Optional[str] = None,
+        api_key: Optional[str] = None
+    ) -> AnalysisResultResponse:
+        analyzer = get_analyzer(ai_provider=ai_provider, api_key=api_key)
+        try:
+            result = analyzer.analyze_text(
+                text=text, 
+                source_hint=source_hint,
+                ai_provider=ai_provider,
+                api_key=api_key
+            )
+        except TypeError:
+            result = analyzer.analyze_text(text=text, source_hint=source_hint)
+
         ANALYSIS_CACHE[result.id] = result.model_dump()
         return result
 
     @classmethod
-    def analyze_url(cls, url: str) -> AnalysisResultResponse:
-        analyzer = get_analyzer()
-        result = analyzer.analyze_url(url=url)
+    def analyze_url(
+        cls, 
+        url: str,
+        ai_provider: Optional[str] = None,
+        api_key: Optional[str] = None
+    ) -> AnalysisResultResponse:
+        analyzer = get_analyzer(ai_provider=ai_provider, api_key=api_key)
+        try:
+            result = analyzer.analyze_url(
+                url=url,
+                ai_provider=ai_provider,
+                api_key=api_key
+            )
+        except TypeError:
+            result = analyzer.analyze_url(url=url)
+
         ANALYSIS_CACHE[result.id] = result.model_dump()
         return result
 
     @classmethod
-    def analyze_image(cls, extracted_text: str, filename: str) -> AnalysisResultResponse:
-        analyzer = get_analyzer()
-        result = analyzer.analyze_image(extracted_text=extracted_text, filename=filename)
+    def analyze_image(
+        cls, 
+        extracted_text: str, 
+        filename: str,
+        ai_provider: Optional[str] = None,
+        api_key: Optional[str] = None
+    ) -> AnalysisResultResponse:
+        analyzer = get_analyzer(ai_provider=ai_provider, api_key=api_key)
+        try:
+            result = analyzer.analyze_image(
+                extracted_text=extracted_text, 
+                filename=filename,
+                ai_provider=ai_provider,
+                api_key=api_key
+            )
+        except TypeError:
+            result = analyzer.analyze_image(extracted_text=extracted_text, filename=filename)
+
         ANALYSIS_CACHE[result.id] = result.model_dump()
         return result
 

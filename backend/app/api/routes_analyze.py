@@ -1,5 +1,6 @@
 import io
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, status
+from typing import Optional
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Header, status
 from sqlalchemy.orm import Session
 from PIL import Image
 
@@ -20,11 +21,21 @@ router = APIRouter(prefix="/api", tags=["Analysis"])
     summary="Analyze text or social media claim",
     description="Preprocesses textual statements, extracts atomic claims, checks linguistic markers, and returns an explanation-first credibility verdict."
 )
-async def analyze_text(payload: TextAnalysisRequest, db: Session = Depends(get_db)):
+async def analyze_text(
+    payload: TextAnalysisRequest, 
+    db: Session = Depends(get_db),
+    x_ai_provider: Optional[str] = Header(None, alias="X-AI-Provider"),
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
+):
     try:
+        effective_provider = payload.ai_provider or x_ai_provider
+        effective_key = payload.api_key or x_api_key
+
         result = PipelineOrchestrator.analyze_text(
             text=payload.text,
-            source_hint=payload.source_hint
+            source_hint=payload.source_hint,
+            ai_provider=effective_provider,
+            api_key=effective_key
         )
         # Persist to database
         DatabaseService.save_analysis(db, result, raw_content=payload.text)
@@ -41,9 +52,21 @@ async def analyze_text(payload: TextAnalysisRequest, db: Session = Depends(get_d
     summary="Analyze web article URL",
     description="Parses domain credibility, inspects host registry against known fact-checkers and authorities, and generates an assessment."
 )
-async def analyze_url(payload: UrlAnalysisRequest, db: Session = Depends(get_db)):
+async def analyze_url(
+    payload: UrlAnalysisRequest, 
+    db: Session = Depends(get_db),
+    x_ai_provider: Optional[str] = Header(None, alias="X-AI-Provider"),
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
+):
     try:
-        result = PipelineOrchestrator.analyze_url(url=payload.url)
+        effective_provider = payload.ai_provider or x_ai_provider
+        effective_key = payload.api_key or x_api_key
+
+        result = PipelineOrchestrator.analyze_url(
+            url=payload.url,
+            ai_provider=effective_provider,
+            api_key=effective_key
+        )
         # Persist to database
         DatabaseService.save_analysis(db, result, raw_content=payload.url)
         return result
@@ -59,7 +82,14 @@ async def analyze_url(payload: UrlAnalysisRequest, db: Session = Depends(get_db)
     summary="Analyze screenshot or flyer image",
     description="Validates image format and size, inspects visual metadata, and passes extracted content through the credibility engine."
 )
-async def analyze_image(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def analyze_image(
+    file: UploadFile = File(...),
+    ai_provider: Optional[str] = Form(None),
+    api_key: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    x_ai_provider: Optional[str] = Header(None, alias="X-AI-Provider"),
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
+):
     # 1. Validate file extension and MIME type
     allowed_types = ["image/png", "image/jpeg", "image/jpg", "image/webp"]
     if file.content_type not in allowed_types:
@@ -86,11 +116,16 @@ async def analyze_image(file: UploadFile = File(...), db: Session = Depends(get_
             detail="Uploaded file is corrupted or not a valid image."
         )
 
+    effective_provider = ai_provider or x_ai_provider
+    effective_key = api_key or x_api_key
+
     # Extract text from image or pass filename context
     extracted_text = f"Content extracted from uploaded screenshot ({file.filename})"
     result = PipelineOrchestrator.analyze_image(
         extracted_text=extracted_text,
-        filename=file.filename or "screenshot.png"
+        filename=file.filename or "screenshot.png",
+        ai_provider=effective_provider,
+        api_key=effective_key
     )
     # Persist to database
     DatabaseService.save_analysis(db, result, raw_content=extracted_text)

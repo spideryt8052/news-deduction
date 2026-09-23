@@ -4,9 +4,13 @@ from pydantic import BaseModel, Field, HttpUrl
 class TextAnalysisRequest(BaseModel):
     text: str = Field(..., min_length=5, max_length=10000, description="Input text, news headline, or post to analyze")
     source_hint: Optional[str] = Field(None, max_length=100, description="Platform or source indicator (e.g. WhatsApp, X, Facebook)")
+    ai_provider: Optional[str] = Field(None, description="Optional AI provider override (groq, gemini, openai, anthropic, mock)")
+    api_key: Optional[str] = Field(None, description="Optional client-side API key override")
 
 class UrlAnalysisRequest(BaseModel):
     url: str = Field(..., min_length=8, max_length=2000, description="Web URL of news article or post to verify")
+    ai_provider: Optional[str] = Field(None, description="Optional AI provider override")
+    api_key: Optional[str] = Field(None, description="Optional client-side API key override")
 
 class EvidenceItem(BaseModel):
     title: str

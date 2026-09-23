@@ -68,15 +68,17 @@ const REFERENCES = [
 export default function AboutPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
-      
+
       {/* Synopsis Academic Banner */}
       <div className="p-8 sm:p-12 rounded-3xl glass-panel border border-cyan-500/30 text-center space-y-4 relative overflow-hidden">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold uppercase tracking-wider">
           <GraduationCap className="w-4 h-4" />
-          <span>MCA Major Project Synopsis (2025–2027)</span>
+          <span>MCA Major Project Synopsis (2026–2027)</span>
         </div>
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight">
-          Social Media & Misleading Information
+          An Artificial Intelligence-Based Framework for Detection, Classification, and Analysis
+          of Misleading Information in Social Media Using Natural Language Processing and
+          Machine Learning
         </h1>
         <p className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
           Submitted in partial fulfillment of the requirements for the degree of <br />

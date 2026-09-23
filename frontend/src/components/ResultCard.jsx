@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle2, 
   AlertTriangle, 
@@ -12,17 +12,29 @@ import {
   ArrowRight,
   ShieldCheck,
   FileText,
-  AlertOctagon
+  AlertOctagon,
+  Volume2,
+  VolumeX,
+  RotateCcw
 } from 'lucide-react';
 import ConfidenceMeter from './ConfidenceMeter';
 import SourceCard from './SourceCard';
 import EvidenceCard from './EvidenceCard';
 import { CLASSIFICATION_THEMES } from '../utils/constants';
 import api from '../services/api';
+import voiceService from '../services/voiceService';
 
 export default function ResultCard({ result, onReset }) {
   const [copied, setCopied] = useState(false);
   const [feedbackSent, setFeedbackSent] = useState(null); // 'helpful' | 'unhelpful'
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  useEffect(() => {
+    // Stop speech when component unmounts or result changes
+    return () => {
+      voiceService.stopSpeaking();
+    };
+  }, [result]);
 
   if (!result) return null;
 
@@ -50,6 +62,20 @@ Recommendation: ${recommendation}`;
     setTimeout(() => setCopied(false), 2500);
   };
 
+  const handleToggleVoiceReport = () => {
+    if (isSpeaking) {
+      voiceService.stopSpeaking();
+      setIsSpeaking(false);
+    } else {
+      const speechScript = voiceService.formatReportScript(result);
+      voiceService.speak(speechScript, {
+        onStart: () => setIsSpeaking(true),
+        onEnd: () => setIsSpeaking(false),
+        onError: () => setIsSpeaking(false)
+      });
+    }
+  };
+
   const handleFeedback = async (isHelpful) => {
     try {
       await api.submitFeedback({
@@ -72,7 +98,7 @@ Recommendation: ${recommendation}`;
         {/* Decorative ambient gradient */}
         <div className="absolute -top-24 -right-24 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Top Bar: Title & Timestamp */}
+        {/* Top Bar: Title & Action Controls */}
         <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-6 flex-wrap gap-2">
           <div className="flex items-center space-x-2">
             <span className="text-xs uppercase tracking-wider font-semibold text-slate-400">
@@ -85,9 +111,37 @@ Recommendation: ${recommendation}`;
           </div>
 
           <div className="flex items-center space-x-2">
+            {/* Voice Assistant Report Reader */}
+            <button
+              onClick={handleToggleVoiceReport}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                isSpeaking
+                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-sm animate-pulse'
+                  : 'bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+              }`}
+              title={isSpeaking ? "Stop Voice Report" : "Listen to Verdict via Voice"}
+            >
+              {isSpeaking ? (
+                <>
+                  <VolumeX className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Stop Voice</span>
+                  <span className="flex items-center gap-0.5 ml-1">
+                    <span className="w-1 h-2 bg-rose-400 animate-pulse" />
+                    <span className="w-1 h-3 bg-rose-400 animate-pulse delay-75" />
+                    <span className="w-1 h-2 bg-rose-400 animate-pulse delay-150" />
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Listen to Verdict</span>
+                </>
+              )}
+            </button>
+
             <button
               onClick={handleCopy}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-700 text-xs text-slate-300 border border-white/5 transition-all"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-700 text-xs text-slate-300 border border-white/5 transition-all cursor-pointer"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copied ? 'Copied' : 'Copy Summary'}</span>
@@ -172,57 +226,59 @@ Recommendation: ${recommendation}`;
           </div>
         )}
 
-        {/* Actionable Warning / Recommended Action */}
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-600/5 to-transparent border border-amber-500/30 flex items-start space-x-3 mb-6">
-          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <span className="text-xs uppercase tracking-wider font-bold text-amber-300 block">
-              Recommended Action Before Forwarding:
-            </span>
-            <p className="text-xs sm:text-sm text-amber-100 font-medium">
-              {recommendation || "Verify this claim using independent, established sources before sharing on messaging groups."}
-            </p>
+        {/* Actionable Behavioral Nudge Card */}
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs sm:text-sm space-y-1.5 mb-6">
+          <div className="font-bold flex items-center space-x-1.5 text-amber-400">
+            <AlertTriangle className="w-4 h-4" />
+            <span>Think Before You Share — Actionable Guidance:</span>
           </div>
+          <p className="text-slate-300 leading-relaxed">
+            {recommendation || 'Always consult verified official registries or independent news agencies before forwarding.'}
+          </p>
         </div>
 
-        {/* Footer Actions & Feedback */}
-        <div className="border-t border-white/10 pt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center space-x-2 text-xs text-slate-400">
-            <span>Was this assessment helpful?</span>
+        {/* User Feedback & Community Review Loop */}
+        <div className="pt-4 border-t border-white/10 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center space-x-3">
+            <span className="text-xs text-slate-400">Was this assessment helpful?</span>
             <button
               onClick={() => handleFeedback(true)}
-              className={`p-1.5 rounded-lg border transition-colors ${
+              disabled={feedbackSent !== null}
+              className={`p-1.5 rounded-lg border text-xs flex items-center gap-1 transition-all cursor-pointer ${
                 feedbackSent === 'helpful'
-                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                  : 'bg-dark-800 hover:text-white border-white/5'
+                  ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 font-bold'
+                  : 'bg-dark-800 border-white/5 text-slate-400 hover:text-white'
               }`}
-              title="Yes, helpful"
             >
               <ThumbsUp className="w-3.5 h-3.5" />
+              <span>Yes</span>
             </button>
             <button
               onClick={() => handleFeedback(false)}
-              className={`p-1.5 rounded-lg border transition-colors ${
+              disabled={feedbackSent !== null}
+              className={`p-1.5 rounded-lg border text-xs flex items-center gap-1 transition-all cursor-pointer ${
                 feedbackSent === 'unhelpful'
-                  ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                  : 'bg-dark-800 hover:text-white border-white/5'
+                  ? 'bg-rose-500/20 border-rose-500 text-rose-400 font-bold'
+                  : 'bg-dark-800 border-white/5 text-slate-400 hover:text-white'
               }`}
-              title="Needs refinement"
             >
               <ThumbsDown className="w-3.5 h-3.5" />
+              <span>Needs Review</span>
             </button>
             {feedbackSent && (
-              <span className="text-[11px] text-cyan-400 ml-1">Thanks for the feedback!</span>
+              <span className="text-xs text-emerald-400 animate-fade-in">
+                Thank you for your feedback!
+              </span>
             )}
           </div>
 
           {onReset && (
             <button
               onClick={onReset}
-              className="px-4 py-2 rounded-xl bg-dark-800 hover:bg-dark-700 text-xs font-semibold text-slate-200 border border-white/10 hover:border-cyan-500/30 transition-all flex items-center gap-1.5"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-dark-800 hover:bg-dark-700 text-xs font-semibold text-cyan-400 border border-white/5 transition-all cursor-pointer"
             >
+              <RotateCcw className="w-3.5 h-3.5" />
               <span>Analyze Another Claim</span>
-              <ArrowRight className="w-3.5 h-3.5 text-cyan-400" />
             </button>
           )}
         </div>
