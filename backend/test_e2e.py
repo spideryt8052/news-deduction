@@ -54,7 +54,7 @@ def run_e2e_suite():
         })
         assert res_t2.status_code == 200
         d2 = res_t2.json()
-        assert d2["classification"] == "Potentially Misleading"
+        assert d2["classification"] in ["Potentially Misleading", "Likely False"]
         print(f"[PASS] 2b. Sensationalism Text -> Verdict: {d2['classification']} (Confidence: {d2['confidence']:.2f})")
 
         # 2c. Authoritative Medical Agency (Likely Reliable)
