@@ -37,7 +37,7 @@ export default function Navbar() {
     { name: 'How It Works', path: '/how-it-works' },
     { name: 'Learn', path: '/learn' },
     { name: 'Dashboard', path: '/dashboard' },
-    { name: 'About & Synopsis', path: '/about' },
+    { name: 'About', path: '/about' },
   ];
 
   return (
@@ -57,7 +57,7 @@ export default function Navbar() {
                     TruthShield
                   </span>
                   <span className="hidden sm:inline-flex text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-semibold">
-                    MCA Project
+                    AI Verification
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400 font-normal">Social Media & Misleading Info</p>

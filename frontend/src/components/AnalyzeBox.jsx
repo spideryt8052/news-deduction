@@ -343,7 +343,7 @@ export default function AnalyzeBox({ onAnalysisComplete, initialText = '' }) {
           </button>
 
           <div className="text-[11px] text-slate-400 font-medium">
-            AKTU/GNIOT Credibility Workbench
+            Real-Time Credibility Workbench
           </div>
         </div>
 

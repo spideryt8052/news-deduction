@@ -34,8 +34,7 @@ app = FastAPI(
     description="""
     ## TruthShield: Social Media & Misleading Information Platform API
     
-    MCA Project (2025–2027) submitted at Greater Noida Institute of Technology (GNIOT)
-    affiliated with Dr. A.P.J. Abdul Kalam Technical University (AKTU), Lucknow.
+    An explainable, AI-assisted credibility assessment and digital literacy platform for detecting and analyzing potentially misleading information across social media.
     
     ### Core Capabilities:
     * **Multi-Modal Verification:** Ingests raw text, news URLs, and screenshot images.

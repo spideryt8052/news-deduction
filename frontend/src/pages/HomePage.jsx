@@ -31,16 +31,16 @@ const FAQ_ITEMS = [
     a: '1) Likely Reliable: Consistent with verified reporting from authoritative sources. 2) Potentially Misleading: Contains factual fragments but altered or exaggerated context. 3) Likely False: Directly refuted by reliable fact-checkers or official databases. 4) Needs Further Verification: Insufficient evidence available to corroborate or refute.'
   },
   {
-    q: 'How does this project address the research gaps mentioned in the MCA synopsis?',
-    a: 'Traditional fake news systems rely heavily on static datasets and binary true/false tags without verifying source credibility or educating the user. TruthShield implements real-time multi-modal input processing, domain credibility scoring, and explanation-first behavioral nudges to foster active media literacy.'
+    q: 'How does TruthShield differ from conventional fake news detectors?',
+    a: 'Traditional systems rely heavily on static datasets and binary true/false tags without verifying source credibility or educating the user. TruthShield implements real-time multi-modal input processing, domain credibility scoring, and explanation-first behavioral nudges to foster active media literacy.'
   },
   {
     q: 'What input modalities does the platform support?',
-    a: 'The system ingests raw textual statements, forwarded messages, news URLs, and screenshot image files (.png, .jpg, .webp) with automated text preprocessing and optical character recognition (OCR).'
+    a: 'The system ingests raw textual statements, forwarded social media claims, news URLs, and screenshot image files (.png, .jpg, .webp) with automated text preprocessing and visual credibility heuristics.'
   },
   {
-    q: 'Who developed this project?',
-    a: 'Developed by MCA students Aarti Vishwakarma, Soni, Vandana, and Yaseen Jamshed at Greater Noida Institute of Technology (GNIOT) under the guidance of Dr. Saumya Chaturvedi for Dr. A.P.J. Abdul Kalam Technical University (AKTU).'
+    q: 'Does TruthShield claim 100% absolute truth?',
+    a: 'No. TruthShield provides explainable AI-assisted evaluations with calibrated confidence levels (50% to 98%), empirical reasons, and evidence citations to empower users to think critically before forwarding. Detailed development attributions are available on our About page.'
   }
 ];
 
@@ -142,13 +142,13 @@ export default function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
             <div className="space-y-4">
               <span className="text-xs uppercase tracking-wider font-semibold text-cyan-400 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20">
-                Academic Problem Statement
+                The Digital Literacy Challenge
               </span>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                 Why Credibility Verification Matters
               </h2>
               <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                As detailed in our research synopsis, rapid unverified forwarding on WhatsApp, X, and Instagram directly distorts public health decisions, exacerbates social polarization, and impacts democratic processes.
+                Rapid unverified forwarding across WhatsApp, X, and Instagram directly distorts public health decisions, exacerbates social panic, and impacts community trust.
               </p>
               
               <div className="space-y-2 pt-2">

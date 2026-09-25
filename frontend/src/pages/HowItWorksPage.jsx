@@ -15,7 +15,7 @@ export default function HowItWorksPage() {
           How TruthShield Evaluates Misinformation
         </h1>
         <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
-          An in-depth breakdown of the 6-stage methodology specified in the MCA Project Synopsis (Greater Noida Institute of Technology / AKTU).
+          An in-depth breakdown of our 6-stage explainable AI verification pipeline, combining heuristic NLP analysis, domain registries, and fact-checking corroboration.
         </p>
       </div>
 
@@ -26,7 +26,7 @@ export default function HowItWorksPage() {
       <div className="glass-panel p-6 sm:p-10 rounded-3xl border border-white/10 space-y-8">
         <div>
           <h2 className="text-2xl font-bold text-white mb-2">
-            The Multi-Stage Processing Pipeline (Fig. 1)
+            The Multi-Stage Processing Pipeline
           </h2>
           <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
             The detection engine operates as an asynchronous pipeline orchestrated via Python FastAPI. Each phase performs specialized syntactic, semantic, and corroborative checks.

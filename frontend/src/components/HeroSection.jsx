@@ -27,10 +27,10 @@ export default function HeroSection() {
           {/* Left / Main Text Column (7 cols on desktop) */}
           <div className="lg:col-span-7 text-center lg:text-left space-y-6">
             
-            {/* Academic Pill Badge */}
+            {/* Platform Pill Badge */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold tracking-wide uppercase shadow-inner">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>MCA Major Project • AKTU / GNIOT DCA</span>
+              <span>AI-Powered Misinformation Detection & Verification</span>
             </div>
 
             {/* Main Title */}

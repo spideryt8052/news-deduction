@@ -20,9 +20,7 @@ export default function Footer() {
               An AI-assisted credibility assessment and digital literacy platform helping users identify potentially misleading information across social media.
             </p>
             <div className="text-[11px] text-slate-500">
-              Department of Computer Application (DCA)<br />
-              Greater Noida Institute of Technology (Engg. Institute)<br />
-              Dr. A.P.J. Abdul Kalam Technical University (2025–2027)
+              Empowering digital citizens with transparent verification, linguistic analysis, and media literacy tools.
             </div>
           </div>
 
@@ -37,24 +35,21 @@ export default function Footer() {
               <li><Link to="/how-it-works" className="hover:text-cyan-400 transition-colors">Methodology & Workflow</Link></li>
               <li><Link to="/learn" className="hover:text-cyan-400 transition-colors">User Awareness Guide</Link></li>
               <li><Link to="/dashboard" className="hover:text-cyan-400 transition-colors">Analytics Dashboard</Link></li>
-              <li><Link to="/about" className="hover:text-cyan-400 transition-colors">Synopsis & References</Link></li>
+              <li><Link to="/about" className="hover:text-cyan-400 transition-colors">About & Project Credits</Link></li>
             </ul>
           </div>
 
-          {/* Academic Team & Guide */}
+          {/* Verification Capabilities */}
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-200 mb-3">
-              Project Team (MCA)
+              Verification Tools
             </h3>
-            <ul className="space-y-1.5 text-xs">
-              <li className="text-slate-300 font-medium">Yaseen Jamshed <span className="text-slate-500 font-normal">(Backend & Core)</span></li>
-              <li className="text-slate-300 font-medium">Vandana <span className="text-slate-500 font-normal">(Frontend UI/UX)</span></li>
-              <li className="text-slate-300 font-medium">Aarti Vishwakarma <span className="text-slate-500 font-normal">(AI & ML Pipeline)</span></li>
-              <li className="text-slate-300 font-medium">Soni <span className="text-slate-500 font-normal">(Database & Storage)</span></li>
-              <li className="pt-2 text-slate-400">
-                <span className="text-slate-500">Under Guidance of:</span><br />
-                <span className="text-cyan-400 font-medium">Dr. Saumya Chaturvedi</span>
-              </li>
+            <ul className="space-y-2 text-xs">
+              <li><Link to="/analyze" className="hover:text-cyan-400 transition-colors">Text & Post Verification</Link></li>
+              <li><Link to="/analyze" className="hover:text-cyan-400 transition-colors">News URL Domain Inspection</Link></li>
+              <li><Link to="/analyze" className="hover:text-cyan-400 transition-colors">Screenshot Credibility Check</Link></li>
+              <li><Link to="/learn" className="hover:text-cyan-400 transition-colors">30-Second Verification Rule</Link></li>
+              <li><Link to="/about" className="hover:text-cyan-400 transition-colors">Team & Academic Attribution</Link></li>
             </ul>
           </div>
 
@@ -73,7 +68,7 @@ export default function Footer() {
 
         {/* Bottom Bar */}
         <div className="mt-8 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
-          <p>© 2025–2027 TruthShield MCA Project. Developed for academic submission.</p>
+          <p>© 2025–2027 TruthShield. AI-Assisted Credibility & Digital Literacy Platform.</p>
           <div className="flex items-center space-x-4">
             <span className="inline-flex items-center gap-1">
               <span>FastAPI</span> • <span>React</span> • <span>Tailwind CSS</span>

@@ -17,8 +17,8 @@ import voiceService from '../services/voiceService';
 
 const KNOWLEDGE_RESPONSES = [
   {
-    triggers: ['who built', 'team', 'creator', 'developer', 'gniot', 'aktu', 'students', 'members'],
-    answer: "TruthShield was developed by Aarti Vishwakarma, Soni, Vandana, and Yaseen Jamshed under the academic guidance of Dr. Saumya Chaturvedi at Greater Noida Institute of Technology (GNIOT), affiliated with Dr. A.P.J. Abdul Kalam Technical University (AKTU), Lucknow.",
+    triggers: ['who built', 'team', 'creator', 'developer', 'students', 'members'],
+    answer: "TruthShield is an AI-powered misinformation detection platform built to help users evaluate viral claims and detect social media misleading information. You can review detailed team credits and project attributions on our About page.",
   },
   {
     triggers: ['30 second', 'rule', 'whatsapp', 'forwarding', 'nudge'],
@@ -226,7 +226,7 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
                     AI Speech
                   </span>
                 </h3>
-                <p className="text-[10px] text-slate-400">GNIOT / AKTU Research Assistant</p>
+                <p className="text-[10px] text-slate-400">AI Verification Assistant</p>
               </div>
             </div>
 

@@ -8,7 +8,7 @@ from app.services.evidence_engine import EvidenceEngine
 from app.schemas.analysis import EvidenceItem
 
 SYSTEM_PROMPT = """
-You are an objective AI verification assistant for TruthShield, an academic misinformation detection platform developed at Greater Noida Institute of Technology (GNIOT) / AKTU.
+You are an objective AI verification assistant for TruthShield, an advanced misinformation detection and social media credibility assessment platform.
 
 Your mission is to help users evaluate viral claims and understand why information may require independent verification before sharing.
 

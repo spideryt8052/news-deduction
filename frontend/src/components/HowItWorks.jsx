@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   UserCheck, 
   Filter, 
@@ -78,7 +79,7 @@ export default function HowItWorks({ compact = false }) {
             How The Verification System Works
           </h2>
           <p className="text-sm sm:text-base text-slate-400">
-            Based directly on the 6-stage detection workflow defined in the MCA Project Synopsis (Fig. 1).
+            A structured 6-stage credibility evaluation workflow powered by NLP, domain forensics, and AI corroboration.
           </p>
         </div>
 
@@ -124,13 +125,16 @@ export default function HowItWorks({ compact = false }) {
           })}
         </div>
 
-        {/* Synopsis Callout */}
+        {/* Platform Verification Pipeline Callout */}
         <div className="mt-10 p-5 rounded-2xl bg-dark-800/60 border border-white/5 max-w-3xl mx-auto flex items-center justify-between flex-wrap gap-4 text-xs text-slate-400">
           <div className="flex items-center space-x-3">
             <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
-            <span>Workflow strictly follows Figure 1 of GNIOT/AKTU MCA Project Synopsis.</span>
+            <span>Multi-stage verifiable pipeline combining NLP, heuristics, and accredited fact-checking registries.</span>
           </div>
-          <span className="text-cyan-400 font-medium">Supervisor: Dr. Saumya Chaturvedi</span>
+          <Link to="/about" className="text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-1">
+            <span>Learn more about TruthShield</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
         </div>
 
       </div>
