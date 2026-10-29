@@ -23,24 +23,24 @@ import AwarenessSection from '../components/AwarenessSection';
 
 const FAQ_ITEMS = [
   {
-    q: 'Does TruthShield claim 100% accuracy or absolute truth?',
-    a: 'No. The platform explicitly provides an AI-assisted credibility assessment, not absolute truth. Machine learning predictions are accompanied by transparent reasons, retrieved evidence citations, and calibrated confidence levels to encourage critical verification rather than blind trust.'
+    q: 'How does TruthShield check if a news story or claim is genuine?',
+    a: 'When you enter a claim or news link, TruthShield cross-checks the statement against verified reports from credible news organizations and official databases. It evaluates source credibility, checks if quotes are taken out of context, and provides a clear breakdown of why something is genuine or misleading.'
   },
   {
-    q: 'What are the 4 classification states used?',
-    a: '1) Likely Reliable: Consistent with verified reporting from authoritative sources. 2) Potentially Misleading: Contains factual fragments but altered or exaggerated context. 3) Likely False: Directly refuted by reliable fact-checkers or official databases. 4) Needs Further Verification: Insufficient evidence available to corroborate or refute.'
+    q: 'What do the 4 credibility results mean?',
+    a: '1) Likely Reliable: Supported by verified reporting from established and authoritative sources. 2) Potentially Misleading: Contains fragments of truth, but facts are distorted, exaggerated, or framed out of context. 3) Likely False: Contradicted by proven facts, official registries, or reliable fact-checking agencies. 4) Needs Further Verification: Insufficient corroborated evidence available at this time to verify or refute.'
   },
   {
-    q: 'How does TruthShield differ from conventional fake news detectors?',
-    a: 'Traditional systems rely heavily on static datasets and binary true/false tags without verifying source credibility or educating the user. TruthShield implements real-time multi-modal input processing, domain credibility scoring, and explanation-first behavioral nudges to foster active media literacy.'
+    q: 'Can I verify WhatsApp forwards and screenshots of social posts?',
+    a: 'Yes. You can paste forwarded WhatsApp messages, tweets, Facebook posts, or upload screenshot images (.png, .jpg, .webp). The system extracts the core claims and checks if the claim is an old recirculated rumor or a newly emerging story.'
   },
   {
-    q: 'What input modalities does the platform support?',
-    a: 'The system ingests raw textual statements, forwarded social media claims, news URLs, and screenshot image files (.png, .jpg, .webp) with automated text preprocessing and visual credibility heuristics.'
+    q: 'What should I do if a story is marked as Potentially Misleading or False?',
+    a: 'Pause before forwarding or sharing it. Do not spread it in group chats or social channels. You can share the fact-check result with the person who sent it to help protect others from misinformation.'
   },
   {
-    q: 'Does TruthShield claim 100% absolute truth?',
-    a: 'No. TruthShield provides explainable AI-assisted evaluations with calibrated confidence levels (50% to 98%), empirical reasons, and evidence citations to empower users to think critically before forwarding. Detailed development attributions are available on our About page.'
+    q: 'Is my data private and secure when checking news?',
+    a: 'Yes. TruthShield is built to promote public truth and digital safety. Claims submitted for verification are analyzed securely, and your personal browsing identity is never tracked or shared with advertisers.'
   }
 ];
 
@@ -209,10 +209,10 @@ export default function HomePage() {
             Frequently Asked Questions
           </span>
           <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            Frequently Asked Questions & Viva Inquiries
+            Frequently Asked Questions
           </h2>
           <p className="text-xs sm:text-sm text-slate-400">
-            Key conceptual points covering methodology, limitations, and college project evaluation.
+            Common questions about verifying claims, AI accuracy, and protecting your community from fake news.
           </p>
         </div>
 

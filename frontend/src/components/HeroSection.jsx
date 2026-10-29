@@ -47,20 +47,28 @@ export default function HeroSection() {
             </p>
 
             {/* Action CTAs with >=44px touch targets */}
-            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3.5 pt-2">
+            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 pt-2">
+              <Link
+                to="/chat"
+                className="w-full sm:w-auto min-h-[48px] px-7 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white font-semibold text-sm hover:from-purple-500 hover:to-cyan-400 shadow-xl shadow-purple-500/25 transition-all hover:scale-[1.02] flex items-center justify-center gap-2"
+              >
+                <Sparkles className="w-4 h-4 text-cyan-300 animate-pulse" />
+                <span>Ask AI Anything (Chat)</span>
+              </Link>
+
               <Link
                 to="/analyze"
-                className="w-full sm:w-auto min-h-[48px] px-8 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-sm hover:from-cyan-400 hover:to-blue-500 shadow-xl shadow-cyan-500/25 transition-all hover:scale-[1.02] flex items-center justify-center gap-2"
+                className="w-full sm:w-auto min-h-[48px] px-7 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-sm hover:from-cyan-400 hover:to-blue-500 shadow-xl shadow-cyan-500/25 transition-all hover:scale-[1.02] flex items-center justify-center gap-2"
               >
-                <span>Analyze Information</span>
+                <span>Analyze Claim</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
 
               <Link
-                to="/how-it-works"
-                className="w-full sm:w-auto min-h-[48px] px-7 py-3.5 rounded-2xl bg-dark-800/90 hover:bg-dark-700 text-slate-200 font-semibold text-sm border border-white/10 hover:border-cyan-500/30 transition-all flex items-center justify-center gap-2"
+                to="/learn"
+                className="w-full sm:w-auto min-h-[48px] px-6 py-3.5 rounded-2xl bg-dark-800/90 hover:bg-dark-700 text-slate-200 font-semibold text-sm border border-white/10 hover:border-cyan-500/30 transition-all flex items-center justify-center gap-2"
               >
-                <span>Methodology Flowchart</span>
+                <span>Fact Guide</span>
               </Link>
             </div>
 

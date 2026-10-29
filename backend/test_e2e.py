@@ -116,7 +116,7 @@ def run_e2e_suite():
         })
         assert res_u4.status_code == 200
         du4 = res_u4.json()
-        assert "security constraints" in du4["source_assessment"]["details"] or "local address" in du4["source_assessment"]["details"]
+        assert any(term in du4["source_assessment"]["details"].lower() for term in ["security constraints", "local address", "local router", "gateway ip"])
         print(f"[PASS] 3d. SSRF Protection -> Private IP blocked from external crawling")
 
         # -------------------------------------------------------------

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   FileText, 
   Link2, 
@@ -19,7 +20,7 @@ import {
   Globe
 } from 'lucide-react';
 import api, { getStoredAiConfig } from '../services/api';
-import voiceService from '../services/voiceService';
+import voiceService, { OMNIVOICE_LANGUAGES } from '../services/voiceService';
 import ApiKeyModal from './ApiKeyModal';
 
 const SAMPLE_PRESETS = [
@@ -46,6 +47,7 @@ const SAMPLE_PRESETS = [
 ];
 
 export default function AnalyzeBox({ onAnalysisComplete, initialText = '' }) {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('text'); // 'text' | 'url' | 'image'
   const [inputText, setInputText] = useState(initialText || '');
   const [inputUrl, setInputUrl] = useState('');
@@ -63,9 +65,9 @@ export default function AnalyzeBox({ onAnalysisComplete, initialText = '' }) {
   const [currentStep, setCurrentStep] = useState('');
   const [error, setError] = useState(null);
 
-  // Voice Assistance State
+  // Voice & Studio Language State
   const [isRecording, setIsRecording] = useState(false);
-  const [voiceLang, setVoiceLang] = useState('en-US'); // 'en-US' | 'en-IN' | 'hi-IN'
+  const [voiceLang, setVoiceLang] = useState('hi-IN');
 
   // AI Configuration State
   const [showKeyModal, setShowKeyModal] = useState(false);
@@ -96,10 +98,16 @@ export default function AnalyzeBox({ onAnalysisComplete, initialText = '' }) {
     voiceService.startListening({
       lang: voiceLang,
       onStart: () => setIsRecording(true),
-      onEnd: () => setIsRecording(false),
+      onEnd: (finalText) => {
+        setIsRecording(false);
+        if (finalText) {
+          const prefix = baseTextRef.current;
+          setInputText(prefix ? `${prefix} ${finalText}` : finalText);
+        }
+      },
       onError: (err) => {
         setIsRecording(false);
-        setError(`Microphone error: ${err}`);
+        setError(`Microphone notice: ${err}`);
       },
       onResult: ({ combined }) => {
         if (combined) {
@@ -197,6 +205,7 @@ export default function AnalyzeBox({ onAnalysisComplete, initialText = '' }) {
       await new Promise(r => setTimeout(r, 250));
 
       const payload = response.data ? response.data : response;
+      payload.selected_language = voiceLang;
       if (onAnalysisComplete) {
         onAnalysisComplete(payload);
       }
@@ -204,6 +213,7 @@ export default function AnalyzeBox({ onAnalysisComplete, initialText = '' }) {
       console.warn('API error or server offline. Using intelligent client fallback analyzer:', err);
       // Fallback client assessment for offline/standalone demo presentation
       const fallbackResult = generateClientAssessment(activeTab, inputText, inputUrl, selectedFile);
+      fallbackResult.selected_language = voiceLang;
       if (onAnalysisComplete) {
         onAnalysisComplete(fallbackResult);
       }
@@ -213,7 +223,7 @@ export default function AnalyzeBox({ onAnalysisComplete, initialText = '' }) {
     }
   };
 
-  // Heuristic offline analysis for testing when backend server is running in mock mode or during live viva
+  // Heuristic offline analysis for testing when running in offline/client fallback mode
   const generateClientAssessment = (type, text, url, file) => {
     const raw = (text || url || (file ? file.name : '')).toLowerCase();
     
@@ -329,18 +339,37 @@ export default function AnalyzeBox({ onAnalysisComplete, initialText = '' }) {
       {/* Container Box */}
       <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl relative">
         
-        {/* Top Header: AI Provider Pill & Quick Settings */}
+        {/* Top Header: AI Provider Pill & Quick Settings & Language Selector */}
         <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setShowKeyModal(true)}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-xs font-semibold text-slate-300 hover:text-white transition-all cursor-pointer shadow-sm group"
-            title="Configure AI API Key (Groq, Gemini, OpenAI)"
-          >
-            <Zap className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
-            <span>{getProviderLabel()}</span>
-            <Settings className="w-3 h-3 text-slate-400" />
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setShowKeyModal(true)}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-xs font-semibold text-slate-300 hover:text-white transition-all cursor-pointer shadow-sm group"
+              title="Configure AI API Key (Groq, Gemini, OpenAI)"
+            >
+              <Zap className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
+              <span>{getProviderLabel()}</span>
+              <Settings className="w-3 h-3 text-slate-400" />
+            </button>
+
+            {/* OmniVoice Language Selector Pill */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950/40 border border-cyan-500/30 text-xs font-medium text-cyan-300">
+              <Globe className="w-3.5 h-3.5 text-cyan-400" />
+              <select
+                value={voiceLang}
+                onChange={(e) => setVoiceLang(e.target.value)}
+                className="bg-transparent border-none text-xs text-cyan-300 font-semibold focus:outline-none cursor-pointer"
+                title="Active Language for OmniVoice speech & analysis"
+              >
+                {OMNIVOICE_LANGUAGES.map((lang) => (
+                  <option key={lang.id} value={lang.code || lang.id} className="bg-slate-900 text-slate-200">
+                    {lang.flag} {lang.name} ({lang.native})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
           <div className="text-[11px] text-slate-400 font-medium">
             Real-Time Credibility Workbench
@@ -403,12 +432,14 @@ export default function AnalyzeBox({ onAnalysisComplete, initialText = '' }) {
                   <select
                     value={voiceLang}
                     onChange={(e) => setVoiceLang(e.target.value)}
-                    className="bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-[11px] text-slate-300 focus:outline-none"
-                    title="Voice Recognition Language"
+                    className="bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-cyan-500 cursor-pointer max-w-[170px] sm:max-w-none"
+                    title="Voice Recognition & OmniVoice Speech Language"
                   >
-                    <option value="en-US">EN (US)</option>
-                    <option value="en-IN">EN (India)</option>
-                    <option value="hi-IN">HI (हिंदी)</option>
+                    {OMNIVOICE_LANGUAGES.map((lang) => (
+                      <option key={lang.id} value={lang.code || lang.id}>
+                        {lang.flag} {lang.name} ({lang.native})
+                      </option>
+                    ))}
                   </select>
 
                   {!isRecording ? (
@@ -593,6 +624,22 @@ export default function AnalyzeBox({ onAnalysisComplete, initialText = '' }) {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Bridge to Conversational AI Assistant */}
+        <div className="mt-4 p-3 rounded-xl bg-gradient-to-r from-purple-950/40 via-dark-800 to-cyan-950/40 border border-purple-500/25 flex items-center justify-between flex-wrap gap-2 text-xs">
+          <div className="flex items-center gap-2 text-slate-300">
+            <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
+            <span>Want to chat or search with AI directly? Ask questions, upload photos, or trace links.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/chat', { state: inputText.trim() ? { verifiedClaim: { claim: inputText.trim(), classification: 'Needs Further Verification' } } : null })}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600/30 to-cyan-500/30 hover:from-purple-600/50 hover:to-cyan-500/50 text-cyan-200 border border-cyan-500/30 font-semibold transition-all cursor-pointer shadow-sm"
+          >
+            <span>Open AI Chat Assistant</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </div>
 
       </div>

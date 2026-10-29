@@ -182,8 +182,31 @@ news-deduction/
 │   ├── app.json                         # Expo configuration
 │   └── package.json                     # Mobile dependencies
 │
-├── docs/                                # College Project Documentation
-│   ├── VIVA_PRESENTATION_GUIDE.md       # [IMPORTANT] Examiner Q&A, scripts, and demo guide
+├── database/                            # Database & Persistence Layer (Lead: Soni)
+│   ├── schema.sql                       # Complete PostgreSQL DDL (Table 2 + operational tables)
+│   ├── seed_data.sql                    # Seed verified sources (WHO, PIB, RBI, IFCN) & reference claims
+│   ├── init_db.py                       # SQLAlchemy 2.0 multi-engine initialization & audit
+│   ├── chroma_setup.py                  # ChromaDB vector store collection setup & indexing
+│   ├── manage_db.bat                    # 1-click Windows database management launcher
+│   └── README.md                        # Database architecture, schemas, and connection guide
+│
+├── ai_ml/                               # AI & Machine Learning Layer (Lead: Aarti Vishwakarma)
+│   ├── datasets/                        # Labeled benchmark datasets & loader
+│   │   ├── training_claims.json         # Annotated claims (Real, Misleading, False-Fake)
+│   │   └── dataset_loader.py            # Train/test partition splitting utility
+│   ├── feature_extractor.py             # Linguistic manipulation, sensationalism & urgency metrics
+│   ├── train_classifier.py              # TF-IDF + Logistic Regression training pipeline
+│   ├── predictor.py                     # Production inference engine & behavioral nudge generator
+│   ├── embeddings.py                    # Semantic dense vector representations & cosine search
+│   ├── evaluate_benchmarks.py           # Quantitative validation suite (Macro-F1, Accuracy, ECE)
+│   ├── saved_models/                    # Serialized model weights (classifier.pkl, vectorizer.pkl)
+│   ├── train_models.bat                 # 1-click model training & evaluation runner
+│   └── README.md                        # AI/ML architecture, mathematical formulations & benchmarks
+│
+├── docs/                                # College Project Documentation & Research Papers
+│   ├── research_paper.md                # Formal Academic Research Paper (IEEE/Springer standards)
+│   ├── PAPER_DEFENSE_PRESENTATION.md    # 15-Slide Presentation Deck, script & Examiner FAQs
+│   ├── VIVA_PRESENTATION_GUIDE.md       # Examiner Q&A, scripts, and demo guide
 │   ├── architecture.md                  # System architecture specifications
 │   ├── methodology.md                   # Research methodology & algorithm workflows
 │   └── api.md                           # REST API endpoint reference

@@ -13,38 +13,123 @@ import {
   Radio,
   Play
 } from 'lucide-react';
-import voiceService from '../services/voiceService';
+import voiceService, { OMNIVOICE_LANGUAGES } from '../services/voiceService';
+import api from '../services/api';
 
 const KNOWLEDGE_RESPONSES = [
   {
-    triggers: ['who built', 'team', 'creator', 'developer', 'students', 'members'],
-    answer: "TruthShield is an AI-powered misinformation detection platform built to help users evaluate viral claims and detect social media misleading information. You can review detailed team credits and project attributions on our About page.",
+    triggers: ['who built', 'team', 'creator', 'developer', 'students', 'members', 'किसने बनाया', 'टीम'],
+    answers: {
+      en: "TruthShield is an AI-powered misinformation detection platform built to help users evaluate viral claims and detect social media misleading information. You can review detailed team credits and project attributions on our About page.",
+      hi: "ट्रुथशील्ड एक एआई-आधारित सत्यता जांच प्लेटफॉर्म है जो सोशल मीडिया पर फैलने वाली अफवाहों और भ्रामक खबरों की पुष्टि के लिए बनाया गया है। आप हमारे अबाउट पेज पर टीम की विस्तृत जानकारी देख सकते हैं।",
+      ur: "ٹروتھ شیلڈ ایک جدید ترین مصنوعی ذہانت پر مبنی نظام ہے جو سوشل میڈیا پر وائرل افواہوں اور غلط معلومات کی جانچ کے لیے بنایا گیا ہے۔",
+      bn: "ট্রুথশিল্ড একটি এআই-চালিত সত্যতা যাচাই প্ল্যাটফর্ম যা সোশ্যাল মিডিয়ার বিভ্রান্তিকর তথ্য শনাক্ত করতে সাহায্য করে।"
+    }
   },
   {
-    triggers: ['30 second', 'rule', 'whatsapp', 'forwarding', 'nudge'],
-    answer: "The 30-Second Rule advises you to pause before forwarding any sensational post. Check the publisher's domain, inspect the date of old disaster photos, and search for verification on an accredited news agency before pressing share.",
+    triggers: ['30 second', 'rule', 'whatsapp', 'forwarding', 'nudge', '30 सेकंड', 'नियम'],
+    answers: {
+      en: "The 30-Second Rule advises you to pause before forwarding any sensational post. Check the publisher's domain, inspect the date of old disaster photos, and search for verification on an accredited news agency before pressing share.",
+      hi: "30-सेकंड का नियम यह सलाह देता है कि किसी भी सनसनीखेज पोस्ट को शेयर या फॉरवर्ड करने से पहले 30 सेकंड का विराम लें। प्रकाशक के डोमेन की जांच करें, तारीख देखें और किसी प्रमाणित समाचार एजेंसी पर खबर की पुष्टि अवश्य करें।",
+      ur: "30 سیکنڈ کا اصول یہ ہے کہ کسی بھی سنسنی خیز خبر کو شیئر کرنے سے پہلے 30 سیکنڈ رک کر تصدیق کریں کہ آیا یہ مستند ہے یا نہیں۔",
+      bn: "৩০-সেকেন্ড নিয়মটি আপনাকে কোনো পোস্ট শেয়ার করার আগে ৩০ সেকেন্ড অপেক্ষা করে নির্ভরযোগ্য সূত্র থেকে যাচাই করার পরামর্শ দেয়।"
+    }
   },
   {
-    triggers: ['how it works', 'pipeline', 'detection', 'stages', 'methodology'],
-    answer: "TruthShield uses a 6-stage pipeline: input preprocessing, linguistic urgency extraction, atomic claim isolation, domain reputation verification with SSRF protection, multi-LLM synthesis, and explanation-first stance-tagged evidence presentation.",
+    triggers: ['how it works', 'steps', 'how to use', 'verification', 'process', 'कैसे काम करता'],
+    answers: {
+      en: "Verifying news is simple with TruthShield in 3 steps: 1) Paste any claim, link, or upload a screenshot. 2) Our AI cross-checks it against credible journalistic sources and facts. 3) You get a clear credibility verdict with evidence so you know what is true before sharing.",
+      hi: "ट्रुथशील्ड से खबर जांचना बेहद आसान है: 1) कोई भी दावा, लिंक या स्क्रीनशॉट डालें। 2) हमारा एआई प्रमाणित समाचार स्रोतों से तथ्यों का मिलान करता है। 3) आपको स्पष्ट विश्वसनीयता रिपोर्ट मिलती है ताकि आप सच जान सकें।",
+      ur: "خبروں کی جانچ کے 3 آسان مراحل ہیں: خبر درج کریں، اے آئی مصدقہ ذرائع سے جائزہ لے گا، اور آپ کو فوری رپورٹ فراہم کرے گا۔",
+      bn: "সংবাদ যাচাইয়ের ৩টি সহজ ধাপ: দাবি বা লিঙ্ক জমা দিন, এআই নির্ভরযোগ্য সূত্র থেকে যাচাই করবে এবং ফলাফল দেখাবে।"
+    }
   },
   {
-    triggers: ['categories', 'tiers', 'classification', 'labels'],
-    answer: "TruthShield avoids simplistic True or False labels. We use 4 calibrated categories: Likely Reliable, Potentially Misleading, Likely False, and Needs Further Verification.",
+    triggers: ['categories', 'tiers', 'classification', 'labels', 'श्रेणियां', 'वर्गीकरण'],
+    answers: {
+      en: "TruthShield avoids simplistic True or False labels. We use 4 calibrated categories: Likely Reliable, Potentially Misleading, Likely False, and Needs Further Verification.",
+      hi: "ट्रुथशील्ड साधारण सही या गलत के बजाय 4 स्पष्ट श्रेणियां उपयोग करता है: 1. विश्वसनीय (Likely Reliable), 2. भ्रामक (Potentially Misleading), 3. झूठा (Likely False), और 4. अपुष्ट जानकारी (Needs Further Verification)।",
+      ur: "ٹروتھ شیلڈ 4 زمرے استعمال کرتا ہے: قابلِ اعتماد، گمراہ کن، غلط، اور مزید تصدیق طلب۔",
+      bn: "ট্রুथশিল্ড ৪টি বিভাগ ব্যবহার করে: নির্ভরযোগ্য, বিভ্রান্তিকর, মিথ্যা, এবং অযাচাইকৃত।"
+    }
   },
   {
-    triggers: ['confidence', 'accuracy', '94%'],
-    answer: "TruthShield strictly avoids claiming unverified 90% or 94% accuracy. Instead, we present calibrated AI Assessment Confidence between 50% and 98%, reflecting the mathematical strength of available empirical evidence.",
+    triggers: ['garlic', 'cure', 'virus', 'boil', 'लहसुन'],
+    answers: {
+      en: "Evaluation for Garlic Water: Categorized as Likely False with 92% confidence. The World Health Organization clarifies that while garlic is nutritious, there is zero empirical evidence supporting garlic water as an antiviral cure.",
+      hi: "उबले हुए लहसुन के पानी का दावा: यह 92% विश्वसनीयता के साथ झूठा (Likely False) पाया गया है। विश्व स्वास्थ्य संगठन (WHO) के अनुसार लहसुन पौष्टिक है, परंतु यह किसी भी वायरस का इलाज नहीं है।",
+      ur: "ابلتے ہوئے لہسن کے پانی کا دعویٰ غلط ہے۔ ڈبلیو ایچ او کے مطابق لہسن وائرس کا علاج نہیں ہے۔",
+      bn: "রসুন জলের দাবিটি মিথ্যা হিসেবে প্রমাণিত। বিশ্ব স্বাস্থ্য সংস্থার মতে রসুনের জল ভাইরাসের প্রতিষেধক নয়।"
+    }
   },
   {
-    triggers: ['deepfake', 'image', 'photo', 'screenshot', 'video'],
-    answer: "To spot synthetic images or deepfakes: inspect unnatural hand anatomy, irregular shadows, warped text on background signs, and reverse-image search using Google Images or TinEye.",
-  },
-  {
-    triggers: ['garlic', 'cure', 'virus', 'boil'],
-    answer: "Evaluation for Garlic Water: Categorized as Likely False with 92% confidence. The World Health Organization clarifies that while garlic is nutritious, there is zero empirical evidence supporting garlic water as an antiviral cure.",
+    triggers: ['deepfake', 'image', 'photo', 'screenshot', 'video', 'डीपफेक'],
+    answers: {
+      en: "To spot synthetic images or deepfakes: inspect unnatural hand anatomy, irregular shadows, warped text on background signs, and reverse-image search using Google Images or TinEye.",
+      hi: "डीपफेक या नकली तस्वीरों को पहचानने के लिए: हाथों की उंगलियों की बनावट देखें, अप्राकृतिक परछाइयों पर ध्यान दें, बैकग्राउंड के अक्षरों की जांच करें और गूगल रिवर्स इमेज सर्च का उपयोग करें।",
+      ur: "ڈیپ فیک تصاویر کی شناخت کے لیے ہاتھوں اور چہرے کی قدرتی ساخت کا معائنہ کریں اور ریورس امیج سرچ کا استعمال کریں۔",
+      bn: "ডিপফেক বা কৃত্রিম ছবি শনাক্ত করতে মুখের বৈশিষ্ট্য, হাতের গঠন এবং ব্যাকগ্রাউন্ডের লেখা লক্ষ্য করুন।"
+    }
   }
 ];
+
+function getLocalizedKnowledgeAnswer(queryLower, langCode) {
+  for (const item of KNOWLEDGE_RESPONSES) {
+    if (item.triggers.some(t => queryLower.includes(t.toLowerCase()))) {
+      return item.answers[langCode] || item.answers['en'];
+    }
+  }
+  if (langCode === 'hi') {
+    return "मैं ट्रुथशील्ड एआई सहायक हूँ। आप मुझसे किसी भी खबर की सत्यता जांचने के लिए कह सकते हैं या कोई भी प्रश्न पूछ सकते हैं।";
+  }
+  if (langCode === 'ur') {
+    return "میں ٹروتھ شیلڈ اے آئی اسسٹنٹ ہوں۔ آپ مجھ سے کوئی بھی سوال پوچھ سکتے ہیں۔";
+  }
+  return "I am TruthShield AI. You can ask me any question or verify any news claim.";
+}
+
+function getLocalizedGreeting(langCode) {
+  if (langCode === 'hi') {
+    return "नमस्ते! 👋 मैं ट्रुथशील्ड का वॉयस असिस्टेंट हूँ। आप मुझसे कोई भी सवाल पूछ सकते हैं या किसी खबर की सच्चाई जांच सकते हैं।";
+  }
+  if (langCode === 'ur') {
+    return "السلام علیکم! 👋 میں ٹروتھ شیلڈ کا وائس اسسٹنٹ ہوں۔ آپ مجھ سے کوئی بھی سوال پوچھ سکتے ہیں یا خبر کی تصدیق کر سکتے ہیں۔";
+  }
+  if (langCode === 'bn') {
+    return "নমস্কার! 👋 আমি ট্রুथশিল্ডের ভয়েস অ্যাসিস্ট্যান্ট। যেকোনো প্রশ্ন করুন বা সংবাদের সত্যতা যাচাই করুন।";
+  }
+  if (langCode === 'pa') {
+    return "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! 👋 ਮੈਂ ਟਰੂਥਸ਼ੀਲਡ ਦਾ ਵੌਇਸ ਅਸਿਸਟੈਂਟ ਹਾਂ। ਕੋਈ ਵੀ ਸਵਾਲ ਪੁੱਛੋ ਜਾਂ ਖ਼ਬਰ ਦੀ ਪੜਤਾਲ ਕਰੋ।";
+  }
+  if (langCode === 'es') {
+    return "¡Hola! 👋 Soy el Asistente de Voz de TruthShield. Pregúntame cualquier duda o verifica cualquier noticia.";
+  }
+  return "Hello! 👋 I am TruthShield's Voice Assistant. Speak a news claim to verify, or ask me questions about media literacy.";
+}
+
+function getLocalizedChips(langCode) {
+  if (langCode === 'hi') {
+    return [
+      { label: 'लहसुन मिथक', q: 'क्या उबला हुआ लहसुन पानी वायरस का इलाज है?' },
+      { label: '30-सेकंड नियम', q: 'फॉरवर्ड करने से पहले 30 सेकंड का नियम क्या है?' },
+      { label: 'टीम की जानकारी', q: 'ट्रुथशील्ड किसने बनाया है?' },
+      { label: '4 श्रेणियां', q: 'सत्यापन के 4 लेबल्स कौन से हैं?' },
+    ];
+  }
+  if (langCode === 'ur') {
+    return [
+      { label: 'لہسن کا علاج', q: 'کیا ابلے ہوئے لہسن کا پانی وائرس کا علاج ہے؟' },
+      { label: '30 سیکنڈ اصول', q: 'شیئر کرنے سے پہلے 30 سیکنڈ کا اصول کیا ہے؟' },
+      { label: '4 زمرے', q: 'تصدیق کے 4 درجے کون سے ہیں؟' },
+    ];
+  }
+  return [
+    { label: 'Garlic Myth', q: 'Is boiled garlic water a virus cure?' },
+    { label: '30-Sec Rule', q: 'What is the 30 second rule?' },
+    { label: 'Team Roles', q: 'Who built this project?' },
+    { label: '4 Tiers', q: 'What are the 4 classification tiers?' },
+  ];
+}
 
 export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -52,16 +137,19 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceMuted, setVoiceMuted] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [selectedLang, setSelectedLang] = useState('en-US'); // 'en-US' | 'en-IN' | 'hi-IN'
   const [messages, setMessages] = useState([
     {
       sender: 'assistant',
-      text: "Hello! I am TruthShield's Voice Assistant. Speak a news claim to verify, or ask me questions about media literacy.",
+      text: getLocalizedGreeting('en'),
       time: 'Just now'
     }
   ]);
-  const [selectedLang, setSelectedLang] = useState('en-US'); // 'en-US' | 'en-IN' | 'hi-IN'
 
   const messagesEndRef = useRef(null);
+  const langDebounceTimerRef = useRef(null);
+  const transcriptRef = useRef('');
+  const silenceTimerRef = useRef(null);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -72,20 +160,61 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
   // Clean up speech when widget unmounts
   useEffect(() => {
     return () => {
+      if (langDebounceTimerRef.current) {
+        clearTimeout(langDebounceTimerRef.current);
+      }
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+      }
       voiceService.stopListening();
       voiceService.stopSpeaking();
     };
   }, []);
 
+  const submitSpeechQuery = (textToSubmit) => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    voiceService.stopListening();
+    setIsListening(false);
+
+    const finalSpeech = (textToSubmit || transcriptRef.current || transcript || '').trim();
+    transcriptRef.current = '';
+    setTranscript('');
+
+    if (finalSpeech) {
+      processUserQuery(finalSpeech);
+    }
+  };
+
   const handleStartListening = () => {
+    if (langDebounceTimerRef.current) {
+      clearTimeout(langDebounceTimerRef.current);
+    }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
     voiceService.stopSpeaking();
     setIsSpeaking(false);
+    transcriptRef.current = '';
     setTranscript('');
 
     voiceService.startListening({
       lang: selectedLang,
       onStart: () => setIsListening(true),
-      onEnd: () => setIsListening(false),
+      onEnd: (capturedText) => {
+        setIsListening(false);
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
+        }
+        const text = (capturedText || transcriptRef.current || '').trim();
+        if (text) {
+          submitSpeechQuery(text);
+        }
+      },
       onError: (err) => {
         setIsListening(false);
         setMessages(prev => [...prev, {
@@ -95,20 +224,27 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
         }]);
       },
       onResult: ({ combined }) => {
+        transcriptRef.current = combined;
         setTranscript(combined);
+
+        // Automatically submit 1.5s after user stops talking
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+        }
+        if (combined.trim().length >= 3) {
+          silenceTimerRef.current = setTimeout(() => {
+            submitSpeechQuery(transcriptRef.current);
+          }, 1500);
+        }
       }
     });
   };
 
   const handleStopListening = () => {
-    voiceService.stopListening();
-    setIsListening(false);
-    if (transcript.trim()) {
-      processUserQuery(transcript.trim());
-    }
+    submitSpeechQuery(transcriptRef.current || transcript);
   };
 
-  const processUserQuery = (queryText) => {
+  const processUserQuery = async (queryText) => {
     const userMsg = {
       sender: 'user',
       text: queryText,
@@ -119,7 +255,7 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
 
     const lower = queryText.toLowerCase();
 
-    // Check if query is an analysis command
+    // Check if query is an explicit analysis command
     if (lower.startsWith('analyze ') || lower.startsWith('verify ') || lower.startsWith('check ')) {
       const claimToAnalyze = queryText.replace(/^(analyze|verify|check)\s+/i, '');
       const reply = `Analyzing statement: "${claimToAnalyze}". Loading assessment into Credibility Studio now.`;
@@ -141,41 +277,44 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
       return;
     }
 
-    // Check against knowledge base
-    let matchedAnswer = null;
-    for (const item of KNOWLEDGE_RESPONSES) {
-      if (item.triggers.some(t => lower.includes(t))) {
-        matchedAnswer = item.answer;
-        break;
-      }
-    }
+    // Call live conversational AI (Google Gemini / Groq / Hybrid)
+    const langCode = (selectedLang || 'en-US').split('-')[0].toLowerCase();
+    const historyTurns = messages.slice(-4).map(m => ({
+      role: m.sender === 'user' ? 'user' : 'assistant',
+      content: m.text
+    }));
 
-    if (!matchedAnswer) {
-      // Default: treat as a claim to verify
-      matchedAnswer = `I received your submission: "${queryText}". You can evaluate this claim in the Credibility Studio for complete source and evidence breakdown.`;
-      
+    try {
+      const res = await api.sendChatMessage(queryText, historyTurns, {}, langCode);
+      const answer = res.response || (langCode === 'hi' ? "मैं आपके सवाल का उत्तर तैयार कर रहा हूँ।" : "I am analyzing your question.");
       setMessages(prev => [...prev, {
         sender: 'assistant',
-        text: matchedAnswer,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        action: { label: 'Analyze This Claim', claim: queryText }
+        text: answer,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }]);
-    } else {
+      if (!voiceMuted) {
+        speakResponse(answer);
+      }
+    } catch (err) {
+      console.warn('Voice AI call failed, falling back to local engine:', err);
+      let matchedAnswer = getLocalizedKnowledgeAnswer(lower, langCode);
       setMessages(prev => [...prev, {
         sender: 'assistant',
         text: matchedAnswer,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }]);
-    }
-
-    if (!voiceMuted) {
-      speakResponse(matchedAnswer);
+      if (!voiceMuted) {
+        speakResponse(matchedAnswer);
+      }
     }
   };
 
   const speakResponse = (text) => {
     voiceService.speak(text, {
       lang: selectedLang,
+      readFull: true,
+      maxSentences: null,
+      conversational: false,
       onStart: () => setIsSpeaking(true),
       onEnd: () => setIsSpeaking(false),
       onError: () => setIsSpeaking(false)
@@ -185,6 +324,40 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
   const handleStopSpeaking = () => {
     voiceService.stopSpeaking();
     setIsSpeaking(false);
+  };
+
+  const handleLanguageChange = (newLang) => {
+    setSelectedLang(newLang);
+    voiceService.stopSpeaking();
+    setIsSpeaking(false);
+
+    if (langDebounceTimerRef.current) {
+      clearTimeout(langDebounceTimerRef.current);
+      langDebounceTimerRef.current = null;
+    }
+
+    const langCode = newLang.split('-')[0].toLowerCase();
+    const newGreeting = getLocalizedGreeting(langCode);
+
+    setMessages([
+      {
+        sender: 'assistant',
+        text: newGreeting,
+        time: 'Just now'
+      }
+    ]);
+
+    if (!voiceMuted) {
+      langDebounceTimerRef.current = setTimeout(() => {
+        voiceService.speak(newGreeting, {
+          lang: newLang,
+          readFull: true,
+          onStart: () => setIsSpeaking(true),
+          onEnd: () => setIsSpeaking(false),
+          onError: () => setIsSpeaking(false)
+        });
+      }, 250);
+    }
   };
 
   return (
@@ -222,11 +395,12 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
               <div>
                 <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
                   Voice Assistant
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                    AI Speech
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+                    <Sparkles className="w-2.5 h-2.5" />
+                    OmniVoice DLM
                   </span>
                 </h3>
-                <p className="text-[10px] text-slate-400">AI Verification Assistant</p>
+                <p className="text-[10px] text-slate-400">Multilingual AI Voice Assistant (600+ Langs)</p>
               </div>
             </div>
 
@@ -245,6 +419,9 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
               <button
                 type="button"
                 onClick={() => {
+                  if (langDebounceTimerRef.current) {
+                    clearTimeout(langDebounceTimerRef.current);
+                  }
                   voiceService.stopListening();
                   voiceService.stopSpeaking();
                   setIsOpen(false);
@@ -297,11 +474,42 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
               </div>
             ))}
 
-            {/* Interim live speech transcript preview */}
-            {isListening && transcript && (
+            {/* Live speech recording & transcript preview */}
+            {isListening && (
               <div className="flex gap-2.5 justify-end">
-                <div className="max-w-[82%] p-3 rounded-2xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-200 text-xs italic animate-pulse">
-                  "{transcript}..."
+                <div className="max-w-[85%] p-3.5 rounded-2xl bg-gradient-to-br from-cyan-950/80 to-slate-900 border border-cyan-500/40 text-cyan-100 text-xs shadow-xl shadow-cyan-500/10">
+                  <div className="flex items-center justify-between gap-2 mb-2 text-[11px] font-semibold text-cyan-300">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+                      <span>Listening... speak now</span>
+                    </span>
+                    <span className="text-[10px] text-cyan-400/80 bg-cyan-950 px-2 py-0.5 rounded-full border border-cyan-500/30">
+                      {selectedLang}
+                    </span>
+                  </div>
+
+                  {transcript ? (
+                    <p className="italic text-white font-medium leading-relaxed bg-slate-950/60 p-2 rounded-xl border border-white/5">
+                      "{transcript}..."
+                    </p>
+                  ) : (
+                    <p className="text-slate-400 text-[11px] italic animate-pulse">
+                      Speak your question or claim clearly...
+                    </p>
+                  )}
+
+                  {transcript && (
+                    <div className="mt-2.5 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleStopListening}
+                        className="px-3 py-1 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-colors flex items-center gap-1 shadow-md shadow-cyan-500/30"
+                      >
+                        <span>Send Now</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -311,12 +519,7 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
 
           {/* Quick Questions Chips */}
           <div className="px-3 py-2 bg-slate-900/60 border-t border-slate-800/80 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-            {[
-              { label: 'Garlic Myth', q: 'Is boiled garlic water a virus cure?' },
-              { label: '30-Sec Rule', q: 'What is the 30 second rule?' },
-              { label: 'Team Roles', q: 'Who built this project?' },
-              { label: '4 Tiers', q: 'What are the 4 classification tiers?' },
-            ].map((chip, idx) => (
+            {getLocalizedChips(selectedLang.split('-')[0].toLowerCase()).map((chip, idx) => (
               <button
                 key={idx}
                 type="button"
@@ -331,15 +534,18 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
           {/* Speech Control Footer */}
           <div className="p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between gap-3">
             
-            {/* Language Selector */}
+            {/* OmniVoice Language Selector */}
             <select
               value={selectedLang}
-              onChange={(e) => setSelectedLang(e.target.value)}
-              className="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-[11px] text-slate-300 focus:outline-none"
+              onChange={(e) => handleLanguageChange(e.target.value)}
+              className="bg-slate-950 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-[11px] text-slate-200 focus:outline-none focus:border-cyan-500 max-w-[150px] truncate"
+              title="Select OmniVoice Language"
             >
-              <option value="en-US">English (US)</option>
-              <option value="en-IN">English (India)</option>
-              <option value="hi-IN">Hindi (हिंदी)</option>
+              {OMNIVOICE_LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.flag} {l.name}
+                </option>
+              ))}
             </select>
 
             {/* Big Mic Control Button */}
@@ -369,9 +575,10 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
                   type="button"
                   onClick={handleStopListening}
                   className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-rose-600/30 animate-pulse transition-all"
+                  title="Click to finish speaking and send immediately"
                 >
                   <MicOff className="w-4 h-4" />
-                  <span>Done Speaking</span>
+                  <span>Done Speaking (Send)</span>
                 </button>
               )}
             </div>

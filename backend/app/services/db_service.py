@@ -10,8 +10,17 @@ from app.models.models import (
     EvidenceModel,
     SourceAssessmentModel,
     UserFeedbackModel,
-    ReportedClaimModel
+    ReportedClaimModel,
+    UserModel,
+    PostModel,
+    ClaimModel,
+    SourceModel,
+    VerificationModel,
+    ClassificationModel,
+    EngagementModel,
+    AlertModel
 )
+from app.services.vector_service import VectorService
 from app.schemas.analysis import (
     AnalysisResultResponse,
     EvidenceItem,
@@ -22,11 +31,12 @@ class DatabaseService:
     """Manages transactional persistence for evaluations, sources, and user feedback."""
 
     @staticmethod
-    def save_analysis(db: Session, result: AnalysisResultResponse, raw_content: str = "") -> AnalysisResultModel:
+    def save_analysis(db: Session, result: AnalysisResultResponse, raw_content: str = "", user_id: Optional[str] = None) -> AnalysisResultModel:
         """Persists a complete analysis result with associated reasons and evidence."""
         # Create parent result record
         db_result = AnalysisResultModel(
             id=result.id,
+            user_id=user_id,
             input_type=result.input_type,
             input_content=raw_content or result.claim,
             classification=result.classification,
@@ -70,8 +80,63 @@ class DatabaseService:
             )
             db.add(src_record)
 
+        # Synchronize with Academic Table 2 Normalized Schema Models
+        try:
+            tier3 = getattr(result, "category_3tier", None) or "Misleading"
+            post_record = PostModel(
+                id=result.id,
+                platform="Social Media",
+                text=raw_content or result.claim,
+                headline=result.claim[:150],
+                media_type=result.input_type,
+                source=result.source_assessment.source if result.source_assessment else "Unknown",
+                created_at=datetime.datetime.utcnow()
+            )
+            db.add(post_record)
+
+            claim_record = ClaimModel(
+                post_id=result.id,
+                claim_text=result.claim,
+                created_at=datetime.datetime.utcnow()
+            )
+            db.add(claim_record)
+
+            classif_record = ClassificationModel(
+                post_id=result.id,
+                category=tier3,
+                confidence=result.confidence,
+                classified_at=datetime.datetime.utcnow()
+            )
+            db.add(classif_record)
+
+            alert_record = AlertModel(
+                post_id=result.id,
+                alert_message=result.recommendation,
+                nudge_type="Pre-Share Warning",
+                created_at=datetime.datetime.utcnow()
+            )
+            db.add(alert_record)
+        except Exception:
+            pass
+
         db.commit()
         db.refresh(db_result)
+
+        # Index into ChromaDB / Vector Similarity Store
+        try:
+            VectorService().index_claim(
+                claim_id=result.id,
+                claim_text=result.claim,
+                metadata={
+                    "category": getattr(result, "category_3tier", "Misleading"),
+                    "classification": result.classification,
+                    "confidence": str(result.confidence),
+                    "source": result.source_assessment.source if result.source_assessment else "Unverified"
+                }
+            )
+        except Exception:
+            pass
+
         return db_result
 
     @staticmethod
@@ -183,7 +248,39 @@ class DatabaseService:
 
     @staticmethod
     def seed_initial_records(db: Session):
-        """Seeds prototype evaluation records if database is empty."""
+        """Seeds prototype evaluation records and default users if not present."""
+        # Seed default Admin and User accounts
+        try:
+            from app.core.security import hash_password
+            admin_user = db.query(UserModel).filter(UserModel.email == "admin@truthshield.com").first()
+            if not admin_user:
+                admin_user = UserModel(
+                    id=str(uuid.uuid4()),
+                    name="TruthShield Administrator",
+                    email="admin@truthshield.com",
+                    password_hash=hash_password("admin123"),
+                    role="admin",
+                    is_active=True,
+                    created_at=datetime.datetime.utcnow()
+                )
+                db.add(admin_user)
+
+            normal_user = db.query(UserModel).filter(UserModel.email == "user@truthshield.com").first()
+            if not normal_user:
+                normal_user = UserModel(
+                    id=str(uuid.uuid4()),
+                    name="Verified Student User",
+                    email="user@truthshield.com",
+                    password_hash=hash_password("user123"),
+                    role="user",
+                    is_active=True,
+                    created_at=datetime.datetime.utcnow()
+                )
+                db.add(normal_user)
+            db.commit()
+        except Exception:
+            db.rollback()
+
         existing_count = db.query(AnalysisResultModel).count()
         if existing_count > 0:
             return  # already initialized

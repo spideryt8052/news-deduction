@@ -1,0 +1,16 @@
+{
+  "model_name": "TruthShield-LogReg-TFIDF-v1",
+  "trained_at": "2026-09-25T21:05:00.268200",
+  "classes": [
+    "False-Fake",
+    "Misleading",
+    "Real"
+  ],
+  "vocabulary_size": 513,
+  "total_train_samples": 15,
+  "total_test_samples": 5,
+  "macro_f1": 0.5833,
+  "macro_precision": 0.5833,
+  "macro_recall": 0.5833,
+  "ece": 0.506
+}

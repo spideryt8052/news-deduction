@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     # Model selections
     OPENAI_MODEL: str = "gpt-4o-mini"
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
-    GEMINI_MODEL: str = "gemini-3.5-flash"
+    GEMINI_MODEL: str = "gemini-flash-lite-latest"
     ANTHROPIC_MODEL: str = "claude-3-5-haiku-20241022"
     AI_REQUEST_TIMEOUT: int = 25  # seconds
     

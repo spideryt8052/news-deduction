@@ -5,6 +5,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 // Storage keys for client-side API configuration
 const STORAGE_KEY_AI_PROVIDER = 'truthshield_ai_provider';
 const STORAGE_KEY_API_KEY = 'truthshield_api_key';
+const STORAGE_KEY_AUTH_TOKEN = 'truthshield_auth_token';
 
 export const getStoredAiConfig = () => {
   return {
@@ -23,6 +24,22 @@ export const clearStoredAiConfig = () => {
   localStorage.removeItem(STORAGE_KEY_API_KEY);
 };
 
+export const getAuthToken = () => {
+  return localStorage.getItem(STORAGE_KEY_AUTH_TOKEN) || null;
+};
+
+export const setAuthToken = (token) => {
+  if (token) {
+    localStorage.setItem(STORAGE_KEY_AUTH_TOKEN, token);
+  } else {
+    localStorage.removeItem(STORAGE_KEY_AUTH_TOKEN);
+  }
+};
+
+export const clearAuthToken = () => {
+  localStorage.removeItem(STORAGE_KEY_AUTH_TOKEN);
+};
+
 const client = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -31,7 +48,7 @@ const client = axios.create({
   timeout: 25000,
 });
 
-// Request interceptor to automatically attach custom AI key and provider if set by user
+// Request interceptor to automatically attach custom AI key, provider, and Bearer auth token
 client.interceptors.request.use((config) => {
   const { provider, apiKey } = getStoredAiConfig();
   if (provider && provider !== 'auto') {
@@ -39,6 +56,10 @@ client.interceptors.request.use((config) => {
   }
   if (apiKey) {
     config.headers['X-API-Key'] = apiKey;
+  }
+  const token = getAuthToken();
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
   }
   return config;
 });
@@ -152,6 +173,99 @@ export const api = {
     const res = await client.post('/api/report', report);
     return res.data;
   },
+
+  // --- Conversational Human-like AI (Gemini / ChatGPT style) ---
+  sendChatMessage: async (message, conversationHistory = [], customConfig = {}, language = 'en') => {
+    const { provider, apiKey } = getStoredAiConfig();
+    const payload = {
+      message,
+      conversation_history: conversationHistory,
+      ai_provider: customConfig.provider || (provider && provider !== 'auto' ? provider : undefined),
+      api_key: customConfig.apiKey || apiKey || undefined,
+      language: language || 'en',
+    };
+    const res = await client.post('/api/chat', payload);
+    return res.data;
+  },
+
+  // --- Authentication & User Operations ---
+  register: async (name, email, password) => {
+    const res = await client.post('/api/auth/register', { name, email, password });
+    return res.data;
+  },
+
+  login: async (email, password) => {
+    const res = await client.post('/api/auth/login', { email, password });
+    return res.data;
+  },
+
+  getMe: async () => {
+    const res = await client.get('/api/auth/me');
+    return res.data;
+  },
+
+  getUserProfile: async () => {
+    const res = await client.get('/api/user/profile');
+    return res.data;
+  },
+
+  getUserHistory: async (limit = 20, offset = 0) => {
+    const res = await client.get('/api/user/history', { params: { limit, offset } });
+    return res.data;
+  },
+
+  // --- Admin Console Operations ---
+  getAdminStats: async () => {
+    const res = await client.get('/api/admin/stats');
+    return res.data;
+  },
+
+  getAdminUsers: async () => {
+    const res = await client.get('/api/admin/users');
+    return res.data;
+  },
+
+  updateUserRole: async (userId, data) => {
+    const res = await client.put(`/api/admin/users/${userId}/role`, data);
+    return res.data;
+  },
+
+  getAdminClaims: async (limit = 50, offset = 0) => {
+    const res = await client.get('/api/admin/claims', { params: { limit, offset } });
+    return res.data;
+  },
+
+  // --- OmniVoice Multilingual Speech Engine ---
+  getOmniVoiceStatus: async () => {
+    const res = await client.get('/api/omnivoice/status');
+    return res.data;
+  },
+
+  getOmniVoiceLanguages: async () => {
+    const res = await client.get('/api/omnivoice/languages');
+    return res.data;
+  },
+
+  synthesizeSpeech: async (payload) => {
+    const res = await client.post('/api/omnivoice/synthesize', payload);
+    return res.data;
+  },
+
+  generateReportAudio: async (payload) => {
+    const res = await client.post('/api/omnivoice/report-audio', payload);
+    return res.data;
+  },
+
+  transcribeAudio: async (audioBlob, lang = 'en') => {
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'voice_input.webm');
+    formData.append('lang', lang);
+    const res = await client.post('/api/omnivoice/transcribe', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return res.data;
+  },
 };
 
 export default api;
+

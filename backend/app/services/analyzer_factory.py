@@ -19,6 +19,14 @@ def get_analyzer(ai_provider: Optional[str] = None, api_key: Optional[str] = Non
     if target_provider in ["mock", "demo", "offline"] and not api_key:
         return MockAnalyzer()
 
+    # If local statistical machine learning requested
+    if target_provider in ["ml", "scikit-learn", "ai_ml", "local_ml"]:
+        try:
+            from app.services.ml_analyzer import MLAnalyzer
+            return MLAnalyzer()
+        except Exception:
+            return MockAnalyzer()
+
     # If api_key or live provider requested
     try:
         from app.services.llm_analyzer import LLMAnalyzer

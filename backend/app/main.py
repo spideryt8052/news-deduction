@@ -11,6 +11,11 @@ from app.services.db_service import DatabaseService
 from app.api.routes_analyze import router as analyze_router
 from app.api.routes_history import router as history_router
 from app.api.routes_meta import router as meta_router
+from app.api.routes_auth import router as auth_router
+from app.api.routes_admin import router as admin_router
+from app.api.routes_user import router as user_router
+from app.api.routes_chat import router as chat_router
+from app.api.routes_omnivoice import router as omnivoice_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -68,7 +73,7 @@ for _o in settings.CORS_ORIGINS:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|.*\.trycloudflare\.com)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -113,3 +118,8 @@ async def generic_exception_handler(request: Request, exc: Exception):
 app.include_router(analyze_router)
 app.include_router(history_router)
 app.include_router(meta_router)
+app.include_router(auth_router)
+app.include_router(admin_router)
+app.include_router(user_router)
+app.include_router(chat_router)
+app.include_router(omnivoice_router)

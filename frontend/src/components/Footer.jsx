@@ -32,10 +32,9 @@ export default function Footer() {
             <ul className="space-y-2 text-xs">
               <li><Link to="/" className="hover:text-cyan-400 transition-colors">Home</Link></li>
               <li><Link to="/analyze" className="hover:text-cyan-400 transition-colors">Analyze Content</Link></li>
-              <li><Link to="/how-it-works" className="hover:text-cyan-400 transition-colors">Methodology & Workflow</Link></li>
-              <li><Link to="/learn" className="hover:text-cyan-400 transition-colors">User Awareness Guide</Link></li>
+              <li><Link to="/learn" className="hover:text-cyan-400 transition-colors">Fact-Check Guide</Link></li>
               <li><Link to="/dashboard" className="hover:text-cyan-400 transition-colors">Analytics Dashboard</Link></li>
-              <li><Link to="/about" className="hover:text-cyan-400 transition-colors">About & Project Credits</Link></li>
+              <li><Link to="/about" className="hover:text-cyan-400 transition-colors">About & Team Credits</Link></li>
             </ul>
           </div>
 

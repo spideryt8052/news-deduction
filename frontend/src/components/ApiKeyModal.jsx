@@ -63,7 +63,7 @@ const PROVIDERS = [
   {
     id: 'mock',
     name: 'Local Heuristic Engine',
-    badge: '100% Offline / Viva Safe',
+    badge: '100% Offline / Local Safe',
     badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
     description: 'Zero external API calls. Calibrated against our 5 factual archetypes.',
     keyPrefix: '',
@@ -298,7 +298,7 @@ export default function ApiKeyModal({ isOpen, onClose, onConfigSaved }) {
                   Offline Heuristic Knowledge Base Active
                 </h4>
                 <p className="text-xs text-slate-300 leading-relaxed">
-                  Ideal for college viva presentations and offline demos. Evaluates viral claims against pre-calibrated linguistic markers and factual archetypes with 100% reliability and zero internet dependence.
+                  Fast and fully self-contained. Evaluates viral claims against built-in linguistic markers and verified archetypes with zero internet or API quota dependence.
                 </p>
               </div>
             </div>

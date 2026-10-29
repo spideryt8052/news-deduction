@@ -19,6 +19,7 @@ venv.bak/
 .venv/
 *.sqlite3
 *.db
+ai_ml/OmniVoice/
 
 # Environment variables
 .env

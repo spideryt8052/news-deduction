@@ -10,7 +10,8 @@ from app.services.evidence_engine import EvidenceEngine
 from app.schemas.analysis import (
     AnalysisResultResponse, 
     EvidenceItem, 
-    SourceAssessment
+    SourceAssessment,
+    OriginInfo
 )
 
 class MockAnalyzer(BaseAnalyzer):
@@ -171,6 +172,13 @@ class MockAnalyzer(BaseAnalyzer):
                 details="Claim requires manual corroboration against established reporting."
             )
 
+        origin_info = OriginInfo(
+            location="India / Regional" if any(k in cleaned.lower() for k in ["whatsapp", "forward", "india", "delhi", "mumbai", "garlic"]) else "Global / Social Media",
+            original_platform=source_hint or "Viral Social Media Forward",
+            first_seen_period="Recirculating viral narrative" if classification in ["Likely False", "Potentially Misleading"] else "Recent",
+            provenance_details="Claim provenance traced to forwarded messaging channels and social media engagement amplification."
+        )
+
         return AnalysisResultResponse(
             id=analysis_id,
             input_type="text",
@@ -180,6 +188,7 @@ class MockAnalyzer(BaseAnalyzer):
             claim=claim_text,
             evidence=evidence,
             source_assessment=source,
+            origin_info=origin_info,
             reasons=reasons,
             recommendation=recommendation,
             created_at=created_at
@@ -225,6 +234,13 @@ class MockAnalyzer(BaseAnalyzer):
             ]
             recommendation = "Check whether mainstream accredited publications corroborate the report before sharing."
 
+        origin_info = OriginInfo(
+            location="Global / Web Domain" if not any(x in url.lower() for x in [".in", "india", "delhi"]) else "India",
+            original_platform=source_eval.get("source") or "Web Publication",
+            first_seen_period="Web Domain Article",
+            provenance_details=f"Evaluated domain source '{source_eval.get('source')}'. Web provenance and domain credibility analyzed."
+        )
+
         return AnalysisResultResponse(
             id=analysis_id,
             input_type="url",
@@ -234,6 +250,7 @@ class MockAnalyzer(BaseAnalyzer):
             claim=f"Article published at {url}",
             evidence=[],
             source_assessment=SourceAssessment(**source_eval),
+            origin_info=origin_info,
             reasons=reasons,
             recommendation=recommendation,
             created_at=created_at

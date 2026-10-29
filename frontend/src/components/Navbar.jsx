@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ShieldCheck, Menu, X, Activity, ExternalLink, Key, Zap } from 'lucide-react';
+import { ShieldCheck, Menu, X, Zap, Shield, User, LogOut, Sparkles } from 'lucide-react';
 import api, { getStoredAiConfig } from '../services/api';
 import ApiKeyModal from './ApiKeyModal';
+import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,6 +11,8 @@ export default function Navbar() {
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [aiConfig, setAiConfig] = useState(getStoredAiConfig());
   const location = useLocation();
+
+  const { user, isAuthenticated, isAdmin, logout } = useAuth();
 
   useEffect(() => {
     // Check backend health periodically
@@ -33,10 +36,10 @@ export default function Navbar() {
 
   const navLinks = [
     { name: 'Home', path: '/' },
-    { name: 'Analyze', path: '/analyze' },
-    { name: 'How It Works', path: '/how-it-works' },
-    { name: 'Learn', path: '/learn' },
-    { name: 'Dashboard', path: '/dashboard' },
+    { name: 'Ask AI', path: '/chat', isAi: true },
+    { name: 'Analyze Claim', path: '/analyze' },
+    { name: 'Fact-Check Guide', path: '/learn' },
+    { name: 'Live Dashboard', path: '/dashboard' },
     { name: 'About', path: '/about' },
   ];
 
@@ -72,20 +75,28 @@ export default function Navbar() {
                   <Link
                     key={link.name}
                     to={link.path}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
                       isActive
                         ? 'text-cyan-400 bg-cyan-500/10 border border-cyan-500/20'
+                        : link.isAi
+                        ? 'text-cyan-300 hover:text-white hover:bg-cyan-500/10 border border-cyan-500/30'
                         : 'text-slate-300 hover:text-white hover:bg-white/5'
                     }`}
                   >
-                    {link.name}
+                    {link.isAi && <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />}
+                    <span>{link.name}</span>
+                    {link.isAi && (
+                      <span className="text-[9px] uppercase px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-bold">
+                        AI
+                      </span>
+                    )}
                   </Link>
                 );
               })}
             </nav>
 
             {/* Right Action & Status */}
-            <div className="hidden sm:flex items-center space-x-3">
+            <div className="hidden sm:flex items-center space-x-2.5">
               {/* AI Key Configuration Button */}
               <button
                 type="button"
@@ -118,12 +129,55 @@ export default function Navbar() {
                 </span>
               </div>
 
-              <Link
-                to="/analyze"
-                className="px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-medium text-sm hover:from-cyan-400 hover:to-blue-500 shadow-md shadow-cyan-500/20 transition-all hover:shadow-cyan-500/30 flex items-center gap-1.5"
-              >
-                <span>Analyze Claim</span>
-              </Link>
+              {/* Authentication State Elements */}
+              {isAuthenticated ? (
+                <div className="flex items-center space-x-2">
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      className="px-2.5 py-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
+                      title="Admin Control Console"
+                    >
+                      <Shield className="w-3.5 h-3.5 text-purple-400" />
+                      <span>Admin Panel</span>
+                    </Link>
+                  )}
+
+                  <Link
+                    to="/user/panel"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 text-cyan-300 hover:text-white text-xs font-semibold transition-all"
+                    title="User Dashboard & History"
+                  >
+                    <User className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>{user?.name?.split(' ')[0] || 'User Panel'}</span>
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="p-1.5 rounded-lg bg-dark-800 hover:bg-red-500/20 border border-slate-700/80 hover:border-red-500/40 text-slate-400 hover:text-red-300 transition-colors cursor-pointer"
+                    title="Log Out"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <Link
+                    to="/login"
+                    className="px-3 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-700 text-slate-200 hover:text-white text-xs font-medium border border-slate-700 transition-all"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    to="/signup"
+                    className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-medium shadow-md shadow-cyan-500/20 transition-all"
+                  >
+                    Sign Up
+                  </Link>
+                </div>
+              )}
+
             </div>
 
             {/* Mobile menu button */}
@@ -137,12 +191,22 @@ export default function Navbar() {
                 <Zap className="w-4 h-4" />
               </button>
 
-              <Link
-                to="/analyze"
-                className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-medium"
-              >
-                Analyze
-              </Link>
+              {isAuthenticated ? (
+                <Link
+                  to="/user/panel"
+                  className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-medium"
+                >
+                  Panel
+                </Link>
+              ) : (
+                <Link
+                  to="/login"
+                  className="px-2.5 py-1 rounded-lg bg-dark-800 text-slate-200 border border-slate-700 text-xs font-medium"
+                >
+                  Sign In
+                </Link>
+              )}
+
               <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 focus:outline-none"
@@ -174,7 +238,52 @@ export default function Navbar() {
                 </Link>
               );
             })}
-            <div className="pt-2 border-t border-white/10 flex items-center justify-between px-3 text-xs text-slate-400">
+
+            {/* Mobile Auth Links */}
+            <div className="pt-3 border-t border-white/10 space-y-2">
+              {isAuthenticated ? (
+                <>
+                  <Link
+                    to="/user/panel"
+                    className="block px-3 py-2 rounded-lg text-sm font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/20"
+                  >
+                    User Panel ({user?.name || user?.email})
+                  </Link>
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      className="block px-3 py-2 rounded-lg text-sm font-semibold bg-purple-500/10 text-purple-300 border border-purple-500/20"
+                    >
+                      Admin Panel (Root Controls)
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10"
+                  >
+                    Log Out
+                  </button>
+                </>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <Link
+                    to="/login"
+                    className="py-2 text-center rounded-lg bg-dark-800 border border-slate-700 text-slate-200 text-sm font-medium"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    to="/signup"
+                    className="py-2 text-center rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-medium"
+                  >
+                    Sign Up
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-white/10 flex items-center justify-between px-3 text-xs text-slate-400">
               <span>FastAPI Server</span>
               <span className="flex items-center gap-1.5">
                 <span className={`w-2 h-2 rounded-full ${backendStatus === 'online' ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>

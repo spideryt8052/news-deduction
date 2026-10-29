@@ -5,12 +5,18 @@ from sqlalchemy.orm import Session
 from PIL import Image
 
 from app.database.session import get_db
+from app.models.models import UserModel
+from app.api.deps import get_optional_current_user
 from app.services.db_service import DatabaseService
+from app.services.vector_service import VectorService
 from app.services.orchestrator import PipelineOrchestrator
 from app.schemas.analysis import (
     TextAnalysisRequest,
     UrlAnalysisRequest,
-    AnalysisResultResponse
+    AnalysisResultResponse,
+    SemanticSearchRequest,
+    SemanticSearchResponse,
+    SemanticSearchResultItem
 )
 
 router = APIRouter(prefix="/api", tags=["Analysis"])
@@ -24,6 +30,7 @@ router = APIRouter(prefix="/api", tags=["Analysis"])
 async def analyze_text(
     payload: TextAnalysisRequest, 
     db: Session = Depends(get_db),
+    current_user: Optional[UserModel] = Depends(get_optional_current_user),
     x_ai_provider: Optional[str] = Header(None, alias="X-AI-Provider"),
     x_api_key: Optional[str] = Header(None, alias="X-API-Key")
 ):
@@ -37,8 +44,9 @@ async def analyze_text(
             ai_provider=effective_provider,
             api_key=effective_key
         )
-        # Persist to database
-        DatabaseService.save_analysis(db, result, raw_content=payload.text)
+        # Persist to database with optional user link
+        user_id = current_user.id if current_user else None
+        DatabaseService.save_analysis(db, result, raw_content=payload.text, user_id=user_id)
         return result
     except Exception as e:
         raise HTTPException(
@@ -55,6 +63,7 @@ async def analyze_text(
 async def analyze_url(
     payload: UrlAnalysisRequest, 
     db: Session = Depends(get_db),
+    current_user: Optional[UserModel] = Depends(get_optional_current_user),
     x_ai_provider: Optional[str] = Header(None, alias="X-AI-Provider"),
     x_api_key: Optional[str] = Header(None, alias="X-API-Key")
 ):
@@ -67,8 +76,9 @@ async def analyze_url(
             ai_provider=effective_provider,
             api_key=effective_key
         )
-        # Persist to database
-        DatabaseService.save_analysis(db, result, raw_content=payload.url)
+        # Persist to database with optional user link
+        user_id = current_user.id if current_user else None
+        DatabaseService.save_analysis(db, result, raw_content=payload.url, user_id=user_id)
         return result
     except Exception as e:
         raise HTTPException(
@@ -87,6 +97,7 @@ async def analyze_image(
     ai_provider: Optional[str] = Form(None),
     api_key: Optional[str] = Form(None),
     db: Session = Depends(get_db),
+    current_user: Optional[UserModel] = Depends(get_optional_current_user),
     x_ai_provider: Optional[str] = Header(None, alias="X-AI-Provider"),
     x_api_key: Optional[str] = Header(None, alias="X-API-Key")
 ):
@@ -127,8 +138,9 @@ async def analyze_image(
         ai_provider=effective_provider,
         api_key=effective_key
     )
-    # Persist to database
-    DatabaseService.save_analysis(db, result, raw_content=extracted_text)
+    # Persist to database with optional user link
+    user_id = current_user.id if current_user else None
+    DatabaseService.save_analysis(db, result, raw_content=extracted_text, user_id=user_id)
     return result
 
 @router.get(
@@ -148,3 +160,42 @@ async def get_result(result_id: str, db: Session = Depends(get_db)):
             detail=f"Analysis report with ID '{result_id}' not found."
         )
     return result
+
+
+@router.post(
+    "/claims/semantic-search",
+    response_model=SemanticSearchResponse,
+    summary="ChromaDB / Vector Semantic Similarity Search",
+    description="Searches previously analyzed and verified claims using dense vector embeddings or cosine similarity."
+)
+async def semantic_search_claims(payload: SemanticSearchRequest):
+    vector_service = VectorService()
+    results = vector_service.search_similar_claims(
+        query_text=payload.query,
+        top_k=payload.top_k or 5,
+        threshold=payload.threshold or 0.20
+    )
+    stats = vector_service.get_stats()
+    return SemanticSearchResponse(
+        query=payload.query,
+        results=[
+            SemanticSearchResultItem(
+                claim_id=r["claim_id"],
+                claim_text=r["claim_text"],
+                similarity_score=r["similarity_score"],
+                metadata=r["metadata"]
+            ) for r in results
+        ],
+        engine=stats["engine"],
+        total_matched=len(results)
+    )
+
+
+@router.get(
+    "/vector/stats",
+    summary="Vector Store Telemetry",
+    description="Returns indexing status, active collection name, and engine type (ChromaDB vs Vector Fallback)."
+)
+async def get_vector_telemetry():
+    return VectorService().get_stats()
+

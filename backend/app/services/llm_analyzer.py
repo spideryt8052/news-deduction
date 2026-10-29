@@ -4,11 +4,13 @@ from typing import Optional, List
 
 from app.services.base_analyzer import BaseAnalyzer
 from app.services.mock_analyzer import MockAnalyzer
+from app.services.source_verifier import SourceVerifier
 from app.services.llm_service import LLMService
 from app.schemas.analysis import (
     AnalysisResultResponse,
     SourceAssessment,
-    EvidenceItem
+    EvidenceItem,
+    OriginInfo
 )
 
 class LLMAnalyzer(BaseAnalyzer):
@@ -49,6 +51,14 @@ class LLMAnalyzer(BaseAnalyzer):
             details=src_data.get("details", f"Evaluated via Generative AI assessment pipeline ({ai_provider or 'LLM'}).")
         )
 
+        origin_dict = llm_data.get("origin_info", {})
+        origin_dto = OriginInfo(
+            location=origin_dict.get("location", "Global / Social Media"),
+            original_platform=origin_dict.get("original_platform", source_hint or "Social Media Forward"),
+            first_seen_period=origin_dict.get("first_seen_period", "Recent / Under Review"),
+            provenance_details=origin_dict.get("provenance_details", "Origin investigated via AI multi-source cross-referencing.")
+        )
+
         # Process evidence items
         evidence_items: List[EvidenceItem] = []
         for ev in llm_data.get("evidence", []):
@@ -72,6 +82,7 @@ class LLMAnalyzer(BaseAnalyzer):
             claim=llm_data.get("claim", text[:140]),
             evidence=evidence_items,
             source_assessment=source_dto,
+            origin_info=origin_dto,
             reasons=llm_data.get("reasons", ["Linguistic and factual context examined."]),
             recommendation=llm_data.get("recommendation", "Verify with independent sources before forwarding."),
             created_at=created_at
@@ -83,6 +94,10 @@ class LLMAnalyzer(BaseAnalyzer):
         ai_provider: Optional[str] = None,
         api_key: Optional[str] = None
     ) -> AnalysisResultResponse:
+        # Immediately block SSRF and unsafe local addresses before calling external LLMs
+        if not SourceVerifier.is_safe_url(url):
+            return self._fallback_analyzer.analyze_url(url)
+
         llm_data = LLMService.generate_assessment(
             url, 
             context_type="web article URL",
@@ -116,6 +131,14 @@ class LLMAnalyzer(BaseAnalyzer):
             except Exception:
                 pass
 
+        origin_dict = llm_data.get("origin_info", {})
+        origin_dto = OriginInfo(
+            location=origin_dict.get("location", "Online Domain / Web"),
+            original_platform=origin_dict.get("original_platform", "Web Article"),
+            first_seen_period=origin_dict.get("first_seen_period", "Recent"),
+            provenance_details=origin_dict.get("provenance_details", "Domain and web article origin verified through credibility registry.")
+        )
+
         return AnalysisResultResponse(
             id=analysis_id,
             input_type="url",
@@ -125,6 +148,7 @@ class LLMAnalyzer(BaseAnalyzer):
             claim=llm_data.get("claim", f"Article at {url}"),
             evidence=evidence_items,
             source_assessment=source_dto,
+            origin_info=origin_dto,
             reasons=llm_data.get("reasons", ["Domain reputation and publisher transparency analyzed."]),
             recommendation=llm_data.get("recommendation", "Confirm with established news outlets."),
             created_at=created_at

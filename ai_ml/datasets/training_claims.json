@@ -1,0 +1,202 @@
+[
+  {
+    "id": "tr-001",
+    "text": "BREAKING: Drinking boiled garlic water mixed with salt cures all viral respiratory infections in 2 hours! Forward to all your family and friends immediately!",
+    "category": "False-Fake",
+    "classification": "Likely False",
+    "domain": "Health & Medical",
+    "source_type": "WhatsApp Forward",
+    "urgency_score": 0.95,
+    "sensationalism_score": 0.90
+  },
+  {
+    "id": "tr-002",
+    "text": "The World Health Organization (WHO) has released an updated technical guideline recommending daily sodium consumption of under 2000mg for adults to control hypertension.",
+    "category": "Real",
+    "classification": "Likely Reliable",
+    "domain": "Health & Medical",
+    "source_type": "Official Bulletin",
+    "urgency_score": 0.05,
+    "sensationalism_score": 0.05
+  },
+  {
+    "id": "tr-003",
+    "text": "SCIENTISTS SHOCKED: NASA confirms massive golden asteroid 16 Psyche will collide with Earth next Tuesday making every citizen an instant billionaire!",
+    "category": "Misleading",
+    "classification": "Potentially Misleading",
+    "domain": "Science & Space",
+    "source_type": "Clickbait Portal",
+    "urgency_score": 0.85,
+    "sensationalism_score": 0.95
+  },
+  {
+    "id": "tr-004",
+    "text": "URGENT NOTICE: Central bank announces complete currency demonetization and immediate invalidation of all banknotes starting tonight at midnight!",
+    "category": "False-Fake",
+    "classification": "Likely False",
+    "domain": "Finance & Banking",
+    "source_type": "Viral Audio Transcript",
+    "urgency_score": 0.98,
+    "sensationalism_score": 0.92
+  },
+  {
+    "id": "tr-005",
+    "text": "Unconfirmed local report: The downtown metro transit line may experience intermittent maintenance delays next Monday morning according to commuters.",
+    "category": "Misleading",
+    "classification": "Needs Further Verification",
+    "domain": "Civic & Transit",
+    "source_type": "Anonymous Community Group",
+    "urgency_score": 0.35,
+    "sensationalism_score": 0.20
+  },
+  {
+    "id": "tr-006",
+    "text": "Inhaling steam infused with clove oil and camphor crystals destroys 100% of respiratory pathogens inside the nasal cavity instantly.",
+    "category": "False-Fake",
+    "classification": "Likely False",
+    "domain": "Health & Medical",
+    "source_type": "Social Media Graphic",
+    "urgency_score": 0.80,
+    "sensationalism_score": 0.88
+  },
+  {
+    "id": "tr-007",
+    "text": "Indian Space Research Organisation (ISRO) successfully deployed meteorological satellite INSAT-3DS into designated geostationary transfer orbit.",
+    "category": "Real",
+    "classification": "Likely Reliable",
+    "domain": "Science & Space",
+    "source_type": "Official Press Bureau",
+    "urgency_score": 0.10,
+    "sensationalism_score": 0.05
+  },
+  {
+    "id": "tr-008",
+    "text": "Government is distributing free laptops and 10000 rupees stipend to all students who register via this unofficial shortened link before midnight!",
+    "category": "False-Fake",
+    "classification": "Likely False",
+    "domain": "Civic & Scheme Scam",
+    "source_type": "SMS Phishing Chain",
+    "urgency_score": 0.96,
+    "sensationalism_score": 0.94
+  },
+  {
+    "id": "tr-009",
+    "text": "Ministry of Health and Family Welfare issues advisory regarding seasonal influenza precautions, encouraging annual immunization for high-risk cohorts.",
+    "category": "Real",
+    "classification": "Likely Reliable",
+    "domain": "Health & Medical",
+    "source_type": "Official Ministry Portal",
+    "urgency_score": 0.15,
+    "sensationalism_score": 0.08
+  },
+  {
+    "id": "tr-010",
+    "text": "SECRET CURE LEAKED: Big pharma executives caught concealing single miracle fruit that dissolves all cancerous tumors in 48 hours without chemotherapy!",
+    "category": "False-Fake",
+    "classification": "Likely False",
+    "domain": "Health & Medical",
+    "source_type": "Sensational Blog",
+    "urgency_score": 0.92,
+    "sensationalism_score": 0.98
+  },
+  {
+    "id": "tr-011",
+    "text": "Reserve Bank of India maintains policy repo rate unchanged at 6.50 percent following the Monetary Policy Committee review meeting.",
+    "category": "Real",
+    "classification": "Likely Reliable",
+    "domain": "Finance & Banking",
+    "source_type": "Central Bank Bulletin",
+    "urgency_score": 0.05,
+    "sensationalism_score": 0.02
+  },
+  {
+    "id": "tr-012",
+    "text": "SHOCKING FOOTAGE: Scientists discover living prehistoric dinosaurs inhabiting deep cavern networks in the Antarctic ice shelf!",
+    "category": "False-Fake",
+    "classification": "Likely False",
+    "domain": "Science & Hoaxes",
+    "source_type": "Viral Video Channel",
+    "urgency_score": 0.70,
+    "sensationalism_score": 0.96
+  },
+  {
+    "id": "tr-013",
+    "text": "Solar storm approaching Earth next week could trigger auroral displays in high-latitude regions and minor radio communication blackouts.",
+    "category": "Real",
+    "classification": "Likely Reliable",
+    "domain": "Science & Space",
+    "source_type": "NOAA Space Weather Prediction Center",
+    "urgency_score": 0.30,
+    "sensationalism_score": 0.25
+  },
+  {
+    "id": "tr-014",
+    "text": "5G wireless network tower emissions alter genetic cellular structures and weaken human immune resistance against contagious pathogens.",
+    "category": "False-Fake",
+    "classification": "Likely False",
+    "domain": "Technology & Conspiracy",
+    "source_type": "Viral Audio Message",
+    "urgency_score": 0.85,
+    "sensationalism_score": 0.90
+  },
+  {
+    "id": "tr-015",
+    "text": "New economic report shows regional inflation declined to 4.8 percent year-on-year, driven by moderation in food and energy prices.",
+    "category": "Real",
+    "classification": "Likely Reliable",
+    "domain": "Finance & Economy",
+    "source_type": "Accredited Economic Statistics Office",
+    "urgency_score": 0.08,
+    "sensationalism_score": 0.04
+  },
+  {
+    "id": "tr-016",
+    "text": "Ancient herbal remedy secretly used by Himalayan monks proves to cure advanced diabetes and eliminate the need for insulin injections forever.",
+    "category": "False-Fake",
+    "classification": "Likely False",
+    "domain": "Health & Medical",
+    "source_type": "Sponsored Clickbait Network",
+    "urgency_score": 0.88,
+    "sensationalism_score": 0.94
+  },
+  {
+    "id": "tr-017",
+    "text": "Electric vehicle battery prototype achieves 1000 km range in laboratory testing, with commercial road viability anticipated by 2028.",
+    "category": "Real",
+    "classification": "Likely Reliable",
+    "domain": "Technology & Automotive",
+    "source_type": "Peer-Reviewed Energy Journal",
+    "urgency_score": 0.12,
+    "sensationalism_score": 0.18
+  },
+  {
+    "id": "tr-018",
+    "text": "VIRAL WARNING: Criminals are spraying knockout perfume on car windshields at traffic signals to rob drivers unconscious! Share to protect women!",
+    "category": "False-Fake",
+    "classification": "Likely False",
+    "domain": "Civic & Panic Hoax",
+    "source_type": "WhatsApp Chain Message",
+    "urgency_score": 0.95,
+    "sensationalism_score": 0.95
+  },
+  {
+    "id": "tr-019",
+    "text": "Municipal corporation announces routine scheduled power grid maintenance affecting Sector 4 between 2:00 PM and 5:00 PM on Thursday.",
+    "category": "Real",
+    "classification": "Likely Reliable",
+    "domain": "Civic & Municipal",
+    "source_type": "Official Municipal Gazette",
+    "urgency_score": 0.20,
+    "sensationalism_score": 0.02
+  },
+  {
+    "id": "tr-020",
+    "text": "Eating burnt toast every morning deposits toxic carbon minerals that permanently prevent cognitive decline according to unknown doctor.",
+    "category": "False-Fake",
+    "classification": "Likely False",
+    "domain": "Health & Diet Myth",
+    "source_type": "Viral Social Media Reel",
+    "urgency_score": 0.65,
+    "sensationalism_score": 0.82
+  }
+]

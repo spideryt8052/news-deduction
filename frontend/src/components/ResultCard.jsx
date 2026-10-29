@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   CheckCircle2, 
   AlertTriangle, 
@@ -15,19 +16,27 @@ import {
   AlertOctagon,
   Volume2,
   VolumeX,
-  RotateCcw
+  RotateCcw,
+  Globe,
+  Sparkles,
+  MapPin,
+  Calendar,
+  Layers,
+  MessageSquare
 } from 'lucide-react';
 import ConfidenceMeter from './ConfidenceMeter';
 import SourceCard from './SourceCard';
 import EvidenceCard from './EvidenceCard';
 import { CLASSIFICATION_THEMES } from '../utils/constants';
 import api from '../services/api';
-import voiceService from '../services/voiceService';
+import voiceService, { OMNIVOICE_LANGUAGES } from '../services/voiceService';
 
 export default function ResultCard({ result, onReset }) {
+  const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [feedbackSent, setFeedbackSent] = useState(null); // 'helpful' | 'unhelpful'
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceLang, setVoiceLang] = useState(result?.selected_language || 'hi-IN');
 
   useEffect(() => {
     // Stop speech when component unmounts or result changes
@@ -47,6 +56,7 @@ export default function ResultCard({ result, onReset }) {
     reasons = [],
     evidence = [],
     source_assessment,
+    origin_info,
     recommendation,
     created_at
   } = result;
@@ -67,8 +77,10 @@ Recommendation: ${recommendation}`;
       voiceService.stopSpeaking();
       setIsSpeaking(false);
     } else {
-      const speechScript = voiceService.formatReportScript(result);
+      const speechScript = voiceService.formatReportScript(result, voiceLang);
       voiceService.speak(speechScript, {
+        lang: voiceLang,
+        readFull: true,
         onStart: () => setIsSpeaking(true),
         onEnd: () => setIsSpeaking(false),
         onError: () => setIsSpeaking(false)
@@ -111,40 +123,69 @@ Recommendation: ${recommendation}`;
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* Voice Assistant Report Reader */}
-            <button
-              onClick={handleToggleVoiceReport}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-                isSpeaking
-                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-sm animate-pulse'
-                  : 'bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
-              }`}
-              title={isSpeaking ? "Stop Voice Report" : "Listen to Verdict via Voice"}
-            >
-              {isSpeaking ? (
-                <>
-                  <VolumeX className="w-3.5 h-3.5 text-rose-400" />
-                  <span>Stop Voice</span>
-                  <span className="flex items-center gap-0.5 ml-1">
-                    <span className="w-1 h-2 bg-rose-400 animate-pulse" />
-                    <span className="w-1 h-3 bg-rose-400 animate-pulse delay-75" />
-                    <span className="w-1 h-2 bg-rose-400 animate-pulse delay-150" />
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Listen to Verdict</span>
-                </>
-              )}
-            </button>
+            {/* OmniVoice Language Select & Report Reader */}
+            <div className="flex items-center gap-1.5">
+              <select
+                value={voiceLang}
+                onChange={(e) => {
+                  setVoiceLang(e.target.value);
+                  voiceService.stopSpeaking();
+                  setIsSpeaking(false);
+                }}
+                className="bg-slate-900/90 border border-slate-700/80 rounded-lg px-2 py-1 text-[11px] text-slate-300 focus:outline-none focus:border-cyan-500 cursor-pointer"
+                title="OmniVoice Narration Language"
+              >
+                {OMNIVOICE_LANGUAGES.map((l) => (
+                  <option key={l.id} value={l.code || l.id}>
+                    {l.flag} {l.name} ({l.native})
+                  </option>
+                ))}
+              </select>
+
+              <button
+                onClick={handleToggleVoiceReport}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                  isSpeaking
+                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-sm animate-pulse'
+                    : 'bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+                }`}
+                title={isSpeaking ? "Stop Voice Report" : "Listen to Verdict via OmniVoice"}
+              >
+                {isSpeaking ? (
+                  <>
+                    <VolumeX className="w-3.5 h-3.5 text-rose-400" />
+                    <span>Stop Voice</span>
+                    <span className="flex items-center gap-0.5 ml-1">
+                      <span className="w-1 h-2 bg-rose-400 animate-pulse" />
+                      <span className="w-1 h-3 bg-rose-400 animate-pulse delay-75" />
+                      <span className="w-1 h-2 bg-rose-400 animate-pulse delay-150" />
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Listen</span>
+                  </>
+                )}
+              </button>
+            </div>
 
             <button
               onClick={handleCopy}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-700 text-xs text-slate-300 border border-white/5 transition-all cursor-pointer"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? 'Copied' : 'Copy Summary'}</span>
+              <span>{copied ? 'Copied' : 'Copy'}</span>
+            </button>
+
+            {/* Bridge to AI Chat */}
+            <button
+              onClick={() => navigate('/chat', { state: { verifiedClaim: result } })}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600/30 to-cyan-500/30 hover:from-purple-600/50 hover:to-cyan-500/50 text-xs font-semibold text-cyan-200 border border-cyan-500/30 transition-all cursor-pointer shadow-sm"
+              title="Chat with AI about this claim"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Ask AI (AI से पूछें)</span>
             </button>
           </div>
         </div>
@@ -182,6 +223,71 @@ Recommendation: ${recommendation}`;
             "{claim || 'Analyzing submitted information'}"
           </p>
         </div>
+
+        {/* Origin & Provenance Investigation Section ("Kahan Ka Hai" / उत्पत्ति और स्रोत की पड़ताल) */}
+        {origin_info && (
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-cyan-950/40 via-dark-900/80 to-indigo-950/40 border border-cyan-500/30 space-y-3 mb-6 shadow-xl">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+              <div className="flex items-center gap-2">
+                <div className="p-1 rounded-lg bg-cyan-500/20 text-cyan-400">
+                  <Globe className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs uppercase tracking-wider font-bold text-cyan-300">
+                    Origin & Provenance (कहाँ का है / असली स्रोत की पड़ताल)
+                  </h4>
+                  <p className="text-[11px] text-slate-400">
+                    Deep investigation into location, original channel, and recycled context
+                  </p>
+                </div>
+              </div>
+              <span className="text-[10px] uppercase px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 font-bold">
+                Origin Verified
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              <div className="bg-dark-800/90 p-3 rounded-xl border border-white/10 space-y-1">
+                <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Geographic Origin (स्थान / देश):</span>
+                </span>
+                <p className="text-xs sm:text-sm font-semibold text-white">
+                  {origin_info.location || "Global / Online"}
+                </p>
+              </div>
+
+              <div className="bg-dark-800/90 p-3 rounded-xl border border-white/10 space-y-1">
+                <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>First Circulated (पहला मंच):</span>
+                </span>
+                <p className="text-xs sm:text-sm font-semibold text-white">
+                  {origin_info.original_platform || "Viral Social Media Forward"}
+                </p>
+              </div>
+
+              <div className="bg-dark-800/90 p-3 rounded-xl border border-white/10 space-y-1">
+                <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Timeline / Recycled (कब का है):</span>
+                </span>
+                <p className="text-xs sm:text-sm font-semibold text-white">
+                  {origin_info.first_seen_period || "Recent"}
+                </p>
+              </div>
+            </div>
+
+            {origin_info.provenance_details && (
+              <div className="text-xs text-slate-200 bg-dark-900/80 p-3 rounded-xl border border-white/10 leading-relaxed space-y-1">
+                <div className="font-semibold text-cyan-300 flex items-center gap-1.5">
+                  <span>🔬 Provenance & Authenticity Details:</span>
+                </div>
+                <p className="text-slate-300">{origin_info.provenance_details}</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Rationale: "Why this result?" */}
         <div className="space-y-3 mb-6">
@@ -272,15 +378,26 @@ Recommendation: ${recommendation}`;
             )}
           </div>
 
-          {onReset && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={onReset}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-dark-800 hover:bg-dark-700 text-xs font-semibold text-cyan-400 border border-white/5 transition-all cursor-pointer"
+              onClick={() => navigate('/chat', { state: { verifiedClaim: result } })}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white text-xs font-bold shadow-lg shadow-cyan-500/20 transition-all cursor-pointer"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Analyze Another Claim</span>
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Discuss with AI Assistant (AI से पूछें)</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
-          )}
+
+            {onReset && (
+              <button
+                onClick={onReset}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-dark-800 hover:bg-dark-700 text-xs font-semibold text-cyan-400 border border-white/5 transition-all cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Analyze Another</span>
+              </button>
+            )}
+          </div>
         </div>
 
       </div>
