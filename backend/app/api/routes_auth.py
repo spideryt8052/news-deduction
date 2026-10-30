@@ -54,6 +54,11 @@ async def send_email_otp(payload: SendOtpRequest, db: Session = Depends(get_db))
             )
 
     result = OtpService.create_and_send_otp(email_clean, purpose=payload.purpose or "register")
+    if not result.get("success", False):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result.get("message") or "Failed to send email verification code."
+        )
     return SendOtpResponse(**result)
 
 @router.post(

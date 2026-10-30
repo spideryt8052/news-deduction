@@ -38,7 +38,6 @@ export default function RegisterPage() {
 
   // OTP inputs (6 individual boxes)
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
-  const [demoCode, setDemoCode] = useState(null);
   const otpInputRefs = useRef([]);
 
   // States
@@ -110,9 +109,6 @@ export default function RegisterPage() {
       setLoading(false);
 
       if (resp.success) {
-        if (resp.preview_code) {
-          setDemoCode(resp.preview_code);
-        }
         setResendTimer(60);
         setCanResend(false);
         setStep(2);
@@ -171,14 +167,6 @@ export default function RegisterPage() {
     setOtpDigits(newDigits);
     const targetIdx = Math.min(chars.length, 5);
     otpInputRefs.current[targetIdx]?.focus();
-  };
-
-  // Auto-fill convenience button
-  const handleAutoFillDemoCode = () => {
-    if (demoCode && demoCode.length === 6) {
-      setOtpDigits(demoCode.split(''));
-      otpInputRefs.current[5]?.focus();
-    }
   };
 
   // STEP 2: Verify OTP and finalize user registration
@@ -469,25 +457,16 @@ export default function RegisterPage() {
                 </button>
               </div>
 
-              {/* Dev / Interactive Auto-Fill Demo Code Banner */}
-              {demoCode && (
-                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-cyan-950/70 to-blue-950/70 border border-cyan-500/30 text-center space-y-1.5 shadow-md">
-                  <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-cyan-300">
-                    <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
-                    <span>Instant Verification Code:</span>
-                    <span className="font-mono text-base font-extrabold text-white tracking-widest px-2 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/40">
-                      {demoCode}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleAutoFillDemoCode}
-                    className="text-[11px] text-cyan-400 hover:text-cyan-300 underline font-medium cursor-pointer"
-                  >
-                    Click to auto-fill code into boxes
-                  </button>
+              {/* Real Gmail Inbox Security Reminder */}
+              <div className="p-3.5 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 text-center space-y-1 shadow-md">
+                <div className="flex items-center justify-center gap-2 text-xs font-semibold text-cyan-300">
+                  <Mail className="w-4 h-4 text-cyan-400" />
+                  <span>Check your Gmail inbox or Spam folder</span>
                 </div>
-              )}
+                <p className="text-[11px] text-slate-400">
+                  A confidential 6-digit code has been delivered to <strong className="text-white">{email}</strong>.
+                </p>
+              </div>
 
               {/* 6 Individual OTP Boxes with Auto-focus & Paste */}
               <div 

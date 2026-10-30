@@ -60,6 +60,13 @@ class Settings(BaseSettings):
     ANTHROPIC_MODEL: str = "claude-3-5-haiku-20241022"
     AI_REQUEST_TIMEOUT: int = 25  # seconds
     
+    # SMTP / Gmail Configuration for Real Email OTP Dispatch
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""
+    
     class Config:
         env_file = ENV_PATHS
         extra = "allow"

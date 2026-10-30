@@ -40,7 +40,6 @@ export default function LoginPage() {
   // OTP Mode States
   const [otpSent, setOtpSent] = useState(false);
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
-  const [demoCode, setDemoCode] = useState(null);
   const [resendTimer, setResendTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const otpInputRefs = useRef([]);
@@ -130,9 +129,6 @@ export default function LoginPage() {
       setResendTimer(60);
       setCanResend(false);
       setSuccessMsg(`6-digit verification code sent to ${cleanEmail}`);
-      if (res.preview_code) {
-        setDemoCode(res.preview_code);
-      }
     } else {
       setError(res.error || 'Failed to dispatch login code. Ensure this email is registered.');
     }
@@ -189,14 +185,6 @@ export default function LoginPage() {
     } else {
       setError(res.error || 'Invalid or expired OTP code.');
     }
-  };
-
-  // Auto-fill demo code
-  const handleFillDemoCode = () => {
-    if (!demoCode) return;
-    const digits = demoCode.split('');
-    setOtpDigits(digits);
-    setError('');
   };
 
   // Quick Viva & Demo Login
@@ -492,21 +480,16 @@ export default function LoginPage() {
                         </span>
                       </div>
 
-                      {/* Demo preview helper */}
-                      {demoCode && (
-                        <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs text-emerald-300">
-                          <span className="font-mono">
-                            Demo Code: <strong>{demoCode}</strong>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={handleFillDemoCode}
-                            className="px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 font-medium text-[11px] transition-colors"
-                          >
-                            Auto-Fill
-                          </button>
+                      {/* Gmail Inbox Security Reminder */}
+                      <div className="p-2.5 rounded-xl bg-purple-950/40 border border-purple-500/30 text-center space-y-0.5">
+                        <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-purple-300">
+                          <Mail className="w-3.5 h-3.5 text-purple-400" />
+                          <span>Code sent to your Gmail inbox</span>
                         </div>
-                      )}
+                        <p className="text-[11px] text-slate-400">
+                          Please check your Gmail inbox or Spam folder for your 6-digit login code.
+                        </p>
+                      </div>
 
                       {/* 6 Digit Individual Inputs */}
                       <div>
