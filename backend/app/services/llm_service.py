@@ -711,12 +711,15 @@ class LLMService:
                 "- **Recommendation:** Always consult qualified medical professionals and do not replace evidence-based medical treatment with viral social media home remedies."
             )
 
-        # General helpful fallback with structured breakdown
+        # General helpful fallback with clear notification about missing LLM key
         return (
-            f"### Understanding: \"{q}\"\n\n"
-            "Here is an in-depth breakdown of your question:\n\n"
-            "1. **Core Concept:** To understand this topic thoroughly, it helps to examine the underlying principles and verified empirical evidence.\n"
-            "2. **Critical Analysis:** When evaluating statements related to this subject, look for primary source documentation rather than opinion pieces or unverified social media forwards.\n"
-            "3. **Practical Guidance:** If you are trying to verify a specific event or claim, cross-reference credible news registries like Reuters, AP News, or peer-reviewed research databases.\n\n"
-            "Feel free to ask a follow-up or paste a specific paragraph, link, or image to analyze further!"
+            f"### सवाल / प्रश्न: \"{q}\"\n\n"
+            "⚠️ **Note: AI Key Not Configured on Server (Offline Mode)**\n"
+            "सर्वर पर अभी तक **Google Gemini / Groq API Key** सेट नहीं की गई है, इसलिए यह सिस्टम ऑफ़लाइन टेम्पलेट मोड में है।\n\n"
+            "👉 **इसे असली AI (ChatGPT/Gemini) जैसा चलाने के लिए:**\n"
+            "1. ऊपर नेविगेशन बार में **'AI Engine'** बटन पर क्लिक करें और अपनी **Gemini API Key** पेस्ट करें, या\n"
+            "2. Render डैशबोर्ड के **Environment** सेक्शन में `GEMINI_API_KEY` जोड़ें।\n\n"
+            "**बुनियादी जानकारी (General Guidance):**\n"
+            "- किसी भी दावे या जानकारी को साझा करने से पहले विश्वसनीय स्रोतों से सत्यापित करें।\n"
+            "- सोशल मीडिया फॉरवर्ड्स को बिना जांचे आगे न भेजें।"
         )
