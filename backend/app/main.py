@@ -123,3 +123,13 @@ app.include_router(admin_router)
 app.include_router(user_router)
 app.include_router(chat_router)
 app.include_router(omnivoice_router)
+
+@app.get("/", tags=["System & Community"])
+async def root():
+    return {
+        "status": "online",
+        "service": settings.PROJECT_NAME,
+        "message": "TruthShield Backend API is running successfully!",
+        "docs": "/docs",
+        "health": "/api/health"
+    }
