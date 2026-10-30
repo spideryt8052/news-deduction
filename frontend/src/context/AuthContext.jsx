@@ -59,6 +59,42 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const sendOtp = async (email, purpose = 'register') => {
+    try {
+      const resp = await api.sendOtp(email, purpose);
+      return { success: true, ...resp };
+    } catch (err) {
+      const message = formatApiError(err);
+      return { success: false, error: message };
+    }
+  };
+
+  const registerWithOtp = async (name, email, password, otp) => {
+    try {
+      const resp = await api.registerWithOtp(name, email, password, otp);
+      setAuthToken(resp.access_token);
+      setTokenState(resp.access_token);
+      setUser(resp.user);
+      return { success: true, user: resp.user };
+    } catch (err) {
+      const message = formatApiError(err);
+      return { success: false, error: message };
+    }
+  };
+
+  const loginWithOtp = async (email, otp) => {
+    try {
+      const resp = await api.loginWithOtp(email, otp);
+      setAuthToken(resp.access_token);
+      setTokenState(resp.access_token);
+      setUser(resp.user);
+      return { success: true, user: resp.user };
+    } catch (err) {
+      const message = formatApiError(err);
+      return { success: false, error: message };
+    }
+  };
+
   const logout = () => {
     clearAuthToken();
     setTokenState(null);
@@ -84,6 +120,9 @@ export function AuthProvider({ children }) {
     isAdmin: user?.role === 'admin',
     login,
     register,
+    sendOtp,
+    registerWithOtp,
+    loginWithOtp,
     logout,
     refreshUser,
   };

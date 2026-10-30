@@ -191,6 +191,21 @@ export const api = {
   },
 
   // --- Authentication & User Operations ---
+  sendOtp: async (email, purpose = 'register') => {
+    const res = await client.post('/api/auth/send-otp', { email, purpose });
+    return res.data;
+  },
+
+  registerWithOtp: async (name, email, password, otp) => {
+    const res = await client.post('/api/auth/register-with-otp', { name, email, password, otp });
+    return res.data;
+  },
+
+  loginWithOtp: async (email, otp) => {
+    const res = await client.post('/api/auth/login-with-otp', { email, otp });
+    return res.data;
+  },
+
   register: async (name, email, password) => {
     const res = await client.post('/api/auth/register', { name, email, password });
     return res.data;

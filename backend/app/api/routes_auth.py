@@ -13,12 +13,160 @@ from app.schemas.auth import (
     UserRegisterRequest,
     UserLoginRequest,
     UserResponse,
-    AuthResponse
+    AuthResponse,
+    SendOtpRequest,
+    SendOtpResponse,
+    VerifyOtpRegisterRequest,
+    VerifyOtpLoginRequest
 )
+from app.services.otp_service import OtpService
 from app.core.security import hash_password, verify_password, create_access_token
 from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+
+@router.post(
+    "/send-otp",
+    response_model=SendOtpResponse,
+    summary="Dispatch email verification OTP code"
+)
+async def send_email_otp(payload: SendOtpRequest, db: Session = Depends(get_db)):
+    email_clean = payload.email.strip().lower()
+    
+    if payload.purpose == "register":
+        existing = db.query(UserModel).filter(UserModel.email == email_clean).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="An account with this email address already exists. Please log in instead."
+            )
+    elif payload.purpose == "login":
+        existing = db.query(UserModel).filter(UserModel.email == email_clean).first()
+        if not existing:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No account found with this email. Please sign up first."
+            )
+        if not existing.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This account has been deactivated by an administrator."
+            )
+
+    result = OtpService.create_and_send_otp(email_clean, purpose=payload.purpose or "register")
+    return SendOtpResponse(**result)
+
+@router.post(
+    "/register-with-otp",
+    response_model=AuthResponse,
+    summary="Verify OTP and register new user account"
+)
+async def register_with_otp(payload: VerifyOtpRegisterRequest, db: Session = Depends(get_db)):
+    email_clean = payload.email.strip().lower()
+
+    # 1. Verify OTP first
+    valid, message = OtpService.verify_otp(email_clean, payload.otp, expected_purpose="register")
+    if not valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=message
+        )
+
+    # 2. Check duplicate
+    existing = db.query(UserModel).filter(UserModel.email == email_clean).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An account with this email address already exists."
+        )
+
+    # 3. Create account
+    user_count = db.query(UserModel).count()
+    assigned_role = "admin" if (user_count == 0 or "admin" in email_clean) else (payload.role or "user")
+
+    user_id = str(uuid.uuid4())
+    hashed_pwd = hash_password(payload.password)
+
+    new_user = UserModel(
+        id=user_id,
+        name=payload.name.strip(),
+        email=email_clean,
+        password_hash=hashed_pwd,
+        role=assigned_role,
+        is_active=True,
+        created_at=datetime.datetime.utcnow()
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    token = create_access_token({
+        "sub": new_user.id,
+        "name": new_user.name,
+        "email": new_user.email,
+        "role": new_user.role
+    })
+
+    return AuthResponse(
+        access_token=token,
+        token_type="bearer",
+        user=UserResponse(
+            id=new_user.id,
+            name=new_user.name,
+            email=new_user.email,
+            role=new_user.role,
+            is_active=new_user.is_active,
+            created_at=new_user.created_at.isoformat() if new_user.created_at else datetime.datetime.utcnow().isoformat()
+        )
+    )
+
+@router.post(
+    "/login-with-otp",
+    response_model=AuthResponse,
+    summary="Authenticate user via email OTP (passwordless code)"
+)
+async def login_with_otp(payload: VerifyOtpLoginRequest, db: Session = Depends(get_db)):
+    email_clean = payload.email.strip().lower()
+
+    valid, message = OtpService.verify_otp(email_clean, payload.otp, expected_purpose="login")
+    if not valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=message
+        )
+
+    user = db.query(UserModel).filter(UserModel.email == email_clean).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No account associated with this email address."
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account has been deactivated by an administrator."
+        )
+
+    token = create_access_token({
+        "sub": user.id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role
+    })
+
+    return AuthResponse(
+        access_token=token,
+        token_type="bearer",
+        user=UserResponse(
+            id=user.id,
+            name=user.name,
+            email=user.email,
+            role=user.role,
+            is_active=user.is_active,
+            created_at=user.created_at.isoformat() if user.created_at else datetime.datetime.utcnow().isoformat()
+        )
+    )
 
 @router.post(
     "/register",
