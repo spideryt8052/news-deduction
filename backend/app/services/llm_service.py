@@ -480,6 +480,9 @@ class LLMService:
             "kn": "Kannada (ಕನ್ನಡ)",
             "ml": "Malayalam (മലയാളം)",
             "ar": "Arabic (العربية)",
+            "bho": "Bhojpuri (भोजपुरी)",
+            "mai": "Maithili (मैथिली)",
+            "as": "Assamese (অসমীয়া)",
             "es": "Spanish (Español)",
             "fr": "French (Français)",
             "de": "German (Deutsch)",
@@ -494,7 +497,20 @@ class LLMService:
             "sw": "Swahili (Kiswahili)",
         }
 
-        if lang_code != "en" and lang_code in LANG_MAP:
+        if lang_code == "bho":
+            system_instruction += (
+                "\n\nCRITICAL LANGUAGE MANDATE: The user has selected Bhojpuri (भोजपुरी).\n"
+                "You MUST formulate your ENTIRE response in pure, authentic Bhojpuri (भोजपुरी) using Devanagari script. "
+                "Use natural Bhojpuri vocabulary, verb forms, and phrases (such as: बा, गइल, करीं, राउर, का हाल बा, झूठ बात ह, जानकारी, आदि). "
+                "Do NOT answer in formal standard Hindi or English. Write completely and natively in Bhojpuri."
+            )
+        elif lang_code == "ar":
+            system_instruction += (
+                "\n\nCRITICAL LANGUAGE MANDATE: The user has selected Arabic (العربية).\n"
+                "You MUST formulate your ENTIRE response in fluent, clear Modern Standard Arabic (العربية الفصحى) using Arabic script. "
+                "Do NOT mix English words into the Arabic text so that speech synthesis can vocalize the entire response smoothly."
+            )
+        elif lang_code != "en" and lang_code in LANG_MAP:
             target_lang_name = LANG_MAP[lang_code]
             system_instruction += (
                 f"\n\nCRITICAL LANGUAGE MANDATE: The user has selected the language: {target_lang_name}.\n"
@@ -678,6 +694,44 @@ class LLMService:
                 "1. **तथ्य की पुष्टि:** किसी भी जानकारी पर विश्वास करने से पहले उसके आधिकारिक स्रोतों की जांच करना आवश्यक है।\n"
                 "2. **जांच का तरीका:** यदि यह कोई वायरल खबर है, तो प्रतिष्ठित समाचार एजेंसियों (जैसे Reuters, PTI) से मिलान करें।\n"
                 "3. **सलाह:** बिना सत्यापन के सोशल मीडिया पर कोई भी संदेश साझा न करें।"
+            )
+
+        # Bhojpuri localized fallback
+        if lang == "bho":
+            if any(w in q_lower for w in ["hi", "hello", "hey", "kaise ho", "kya haal", "ka haal", "pranam", "प्रणाम", "नमस्ते"]):
+                return (
+                    "प्रणाम! 👋 हम **ट्रुथशील्ड एआई (TruthShield AI)** हईं, राउर आपन एआई सहायक।\n\n"
+                    "रउआ हमरा से कवनो भी सवाल पूछ सकीं ले:\n"
+                    "- 🔍 **सोशल मीडिया के कवनो वायरल खबर भा अफवाह के सच्चाई जांचीं**\n"
+                    "- 📚 **बिज्ञान, इतिहास, समाज आ पढ़ाई-लिखाई के बात पूछीं**\n"
+                    "- 🛡️ **झूठ खबर आ फेक वीडियो पहिचाने के तरीका समझीं**\n\n"
+                    "बताईं, आज रउआ का जाने भा जांचल चाहत बानी?"
+                )
+            return (
+                f"### सवाल के पड़ताल: \"{q}\"\n\n"
+                "राउर सवाल पर मुख्य बात:\n"
+                "1. **तथ्य के जांच:** कवनो भी बात पर बिस्वास करे से पहिले ओकर असली सोर्स जरूर देख लीं।\n"
+                "2. **सच्चाई के परख:** अगर ई सोशल मीडिया के वायरल मैसेज ह, त एकरा के बिना जांचे आगे जिन भेजीं।\n"
+                "3. **सलाह:** सरकार भा आधिकारिक समाचार एजेंसी से मिलान कइला के बादे भरोसा करीं।"
+            )
+
+        # Arabic localized fallback
+        if lang == "ar":
+            if any(w in q_lower for w in ["hi", "hello", "hey", "مرحبا", "سلام", "اهلا"]):
+                return (
+                    "مرحبًا بك! 👋 أنا **تروث شيلد ذكاء اصطناعي (TruthShield AI)**، مساعدك الشخصي للتحقق من الحقائق والمعلومات.\n\n"
+                    "يمكنك سؤالي عن أي شيء:\n"
+                    "- 🔍 **التحقق من صحة الأخبار والشائعات المتداولة على وسائل التواصل**\n"
+                    "- 📚 **شرح المفاهيم العلمية والتقنية والتاريخية**\n"
+                    "- 🛡️ **كشف الأخبار المزيفة والتزييف العميق**\n\n"
+                    "كيف يمكنني مساعدتك اليوم؟"
+                )
+            return (
+                f"### تحليل الاستفسار: \"{q}\"\n\n"
+                "النقاط الأساسية بخصوص استفسارك:\n"
+                "1. **التحقق من المصدر:** قبل تصدیق أو مشاركة أي خبر، تأكد من الاعتماد على وكالات الأنباء الرسمية المعتمدة.\n"
+                "2. **فحص الأدلة:** تجنب إعادة نشر الرسائل المجهولة التي تفتقر للمصادر الموثقة.\n"
+                "3. **التوجيه:** فكّر جيدًا وتحقق قبل المشاركة على وسائل التواصل."
             )
 
         # Urdu localized fallback

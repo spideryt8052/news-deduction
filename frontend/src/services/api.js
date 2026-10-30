@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+
+export const getApiBaseUrl = () => API_BASE_URL;
 
 // Storage keys for client-side API configuration
 const STORAGE_KEY_AI_PROVIDER = 'truthshield_ai_provider';

@@ -1,7 +1,7 @@
 // TruthShield Voice Assistance Service
 // Provides Speech-to-Text (SpeechRecognition) and Text-to-Speech (SpeechSynthesis)
 
-import api from './api';
+import api, { API_BASE_URL } from './api';
 
 const SpeechRecognition = 
   typeof window !== 'undefined' 
@@ -81,12 +81,24 @@ export function toHumanSpeechText(rawText, { maxSentences = null, conversational
 
   // 8. Convert % to natural spoken words per language
   const langKey = (lang || 'en').split('-')[0].toLowerCase();
-  if (langKey === 'hi') {
+  if (langKey === 'hi' || langKey === 'bho' || langKey === 'mai') {
     text = text.replace(/(\d+)\s*%/g, '$1 प्रतिशत');
   } else if (langKey === 'ur') {
     text = text.replace(/(\d+)\s*%/g, '$1 فیصد');
-  } else if (langKey === 'bn') {
+  } else if (langKey === 'bn' || langKey === 'as') {
     text = text.replace(/(\d+)\s*%/g, '$1 শতাংশ');
+  } else if (langKey === 'ar') {
+    text = text.replace(/(\d+)\s*%/g, '$1 في المائة');
+  } else if (langKey === 'ta') {
+    text = text.replace(/(\d+)\s*%/g, '$1 சதவீதம்');
+  } else if (langKey === 'te') {
+    text = text.replace(/(\d+)\s*%/g, '$1 శాతం');
+  } else if (langKey === 'mr') {
+    text = text.replace(/(\d+)\s*%/g, '$1 टक्के');
+  } else if (langKey === 'gu') {
+    text = text.replace(/(\d+)\s*%/g, '$1 ટકા');
+  } else if (langKey === 'pa') {
+    text = text.replace(/(\d+)\s*%/g, '$1 ਪ੍ਰਤੀਸ਼ਤ');
   } else {
     text = text.replace(/(\d+)\s*%/g, '$1 percent');
   }
@@ -106,19 +118,19 @@ export function toHumanSpeechText(rawText, { maxSentences = null, conversational
 
   // 12. Conversational sentence selection (only if explicitly requested)
   if (conversational && maxSentences && maxSentences > 0) {
-    const sentenceRegex = /[^.!?।]+[.!?।]+|[^.!?।]+$/g;
+    const sentenceRegex = /[^.!?।؟\n]+[.!?।؟\n]+|[^.!?।؟\n]+$/g;
     const matches = text.match(sentenceRegex) || [text];
     const cleaned = matches
       .map(s => s.trim())
-      .filter(s => s.length > 3 && /[a-zA-Z0-9\u0600-\u06FF\u0900-\u097F]/.test(s));
+      .filter(s => s.length > 2 && /[\p{L}\p{N}]/u.test(s));
     text = (cleaned.length > maxSentences ? cleaned.slice(0, maxSentences) : cleaned).join(' ');
   }
 
   // 13. Final cleanup of edge punctuation
   text = text.replace(/^[.\s,;:-]+/, '').replace(/[\s,;:-]+$/, '');
   text = text.replace(/[।\.]+\s*\.+/g, '.').replace(/\.+$/, '.');
-  if (text && !/[.!?।]$/.test(text)) {
-    text += (langKey === 'hi' ? '।' : '.');
+  if (text && !/[.!?।؟]$/.test(text)) {
+    text += (langKey === 'hi' || langKey === 'bho' || langKey === 'mai' ? '।' : '.');
   }
 
   return text;
@@ -228,7 +240,9 @@ class VoiceService {
 
     try {
       this.isSpeaking = true;
-      const audioUrl = `/api/omnivoice/audio?text=${encodeURIComponent(cleanText)}&lang=${encodeURIComponent(langKey)}`;
+      const base = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '') || (import.meta.env.VITE_API_URL || '');
+      const cleanBase = base ? base.replace(/\/$/, '') : '';
+      const audioUrl = `${cleanBase}/api/omnivoice/audio?text=${encodeURIComponent(cleanText)}&lang=${encodeURIComponent(langKey)}`;
       const audio = this._sharedAudio;
 
       audio.onplay = () => {
@@ -569,6 +583,11 @@ class VoiceService {
       if (!preferredVoice) {
         preferredVoice = voices.find(v => v.lang.toLowerCase().replace('_', '-').startsWith(langPrefix));
       }
+
+      // 5. Dialect fallback (e.g. Bhojpuri or Maithili can use Hindi voice in browser)
+      if (!preferredVoice && (langPrefix === 'bho' || langPrefix === 'mai')) {
+        preferredVoice = voices.find(v => v.lang.toLowerCase().replace('_', '-').startsWith('hi'));
+      }
     }
 
     // IF browser has NO matching voice installed for this language, stream directly from OmniVoice!
@@ -651,16 +670,9 @@ class VoiceService {
             return;
           }
           console.warn('Speech chunk warning:', e);
-          // If browser TTS failed because voice/language unavailable, fallback to server stream!
-          if (this.chunkIndex === 0 && (e.error === 'voice-unavailable' || e.error === 'language-unavailable' || e.error === 'network')) {
-            this.stopSpeaking();
-            this.playAudioStream(speechText, lang, { onStart, onEnd, onError });
-            return;
-          }
-          if (this._sessionToken === session && this.isSpeaking) {
-            this.chunkIndex++;
-            speakNextChunk();
-          }
+          // If browser TTS failed for any reason, smoothly fallback to server audio stream
+          this.stopSpeaking();
+          this.playAudioStream(speechText, lang, { onStart, onEnd, onError });
         };
 
         window.speechSynthesis.speak(utterance);
@@ -728,6 +740,8 @@ class VoiceService {
       kn: { 'Likely Reliable': 'ವಿಶ್ವಾಸಾರ್ಹ', 'Potentially Misleading': 'ದಾರಿತಪ್ಪಿಸುವ ಮಾಹಿತಿ', 'Likely False': 'ಸುಳ್ಳು', 'Needs Further Verification': 'ಪರಿಶೀಲನೆ ಅಗತ್ಯವಿದೆ' },
       ml: { 'Likely Reliable': 'വിശ്വസനീയം', 'Potentially Misleading': 'തെറ്റിദ്ധരിപ്പിക്കുന്നത്', 'Likely False': 'വ്യാജം', 'Needs Further Verification': 'പരിശോധിക്കേണ്ടതുണ്ട്' },
       ar: { 'Likely Reliable': 'موثوق', 'Potentially Misleading': 'مضلل', 'Likely False': 'كاذب أو مزيف', 'Needs Further Verification': 'بحاجة للتحقق' },
+      bho: { 'Likely Reliable': 'भरोसेमंद', 'Potentially Misleading': 'भरमावे वाला', 'Likely False': 'झूठ भा अफवाह', 'Needs Further Verification': 'जांच करे के बा' },
+      mai: { 'Likely Reliable': 'विश्वसनीय', 'Potentially Misleading': 'भ्रामक', 'Likely False': 'झूठ वा असत्य', 'Needs Further Verification': 'सत्यापन आवश्यक' },
       es: { 'Likely Reliable': 'Confiable', 'Potentially Misleading': 'Engañoso', 'Likely False': 'Falso', 'Needs Further Verification': 'Requiere verificación' },
       fr: { 'Likely Reliable': 'Fiable', 'Potentially Misleading': 'Trompeur', 'Likely False': 'Faux', 'Needs Further Verification': 'À vérifier' },
       de: { 'Likely Reliable': 'Glaubwürdig', 'Potentially Misleading': 'Irreführend', 'Likely False': 'Falsch', 'Needs Further Verification': 'Überprüfung erforderlich' },
@@ -739,7 +753,29 @@ class VoiceService {
     const tierName = (LOCALIZED_TIER[langKey] && LOCALIZED_TIER[langKey][classification]) 
       || classification;
 
-    if (langKey === 'hi' || langKey === 'bho' || langKey === 'mai') {
+    if (langKey === 'bho') {
+      const bhoTier = (LOCALIZED_TIER.bho && LOCALIZED_TIER.bho[classification]) || tierName;
+      let script = `ट्रुथशील्ड पड़ताल रिपोर्ट: `;
+      if (cleanClaim) script += `दावा "${cleanClaim}" के जांच में, `;
+      script += `ई जानकारी ${bhoTier}, जेहपर भरोसा ${confidencePercent} प्रतिशत बा। `;
+      if (cleanReason) script += `मुख्य वजह: ${cleanReason}। `;
+      if (cleanRecommendation) script += `सलाह बा कि: ${cleanRecommendation}। `;
+      else script += `साझा करे से पहिले जांच जरूर करीं।`;
+      return toHumanSpeechText(script, { conversational: false, lang: 'bho' });
+    }
+
+    if (langKey === 'mai') {
+      const maiTier = (LOCALIZED_TIER.mai && LOCALIZED_TIER.mai[classification]) || tierName;
+      let script = `ट्रुथशील्ड सत्यापन रिपोर्ट: `;
+      if (cleanClaim) script += `दावा "${cleanClaim}" क जांच में, `;
+      script += `ई जानकारी ${maiTier}, जाहि पर विश्वास ${confidencePercent} प्रतिशत अछि। `;
+      if (cleanReason) script += `मुख्य कारण: ${cleanReason}। `;
+      if (cleanRecommendation) script += `सलाह: ${cleanRecommendation}। `;
+      else script += `कृपया साझा करबा सँ पहिने पुष्टि करू।`;
+      return toHumanSpeechText(script, { conversational: false, lang: 'mai' });
+    }
+
+    if (langKey === 'hi') {
       let script = `ट्रुथशील्ड सत्यापन रिपोर्ट: `;
       if (cleanClaim) script += `दावे "${cleanClaim}" की पड़ताल में, `;
       script += `यह जानकारी ${tierName} आंकी गई है, जिस पर एआई विश्वसनीयता ${confidencePercent} प्रतिशत है। `;

@@ -151,7 +151,45 @@ class OmniVoiceService:
 
         tier_name = localized_tier.get(lang_id, {}).get(classification, classification)
 
-        if lang_id == "hi" or lang_id in ["bho", "mai"]:
+        if lang_id == "bho":
+            bho_tier = {
+                "Likely Reliable": "भरोसेमंद बा",
+                "Potentially Misleading": "भरमावे वाला बा",
+                "Likely False": "झूठ भा अफवाह बा",
+                "Needs Further Verification": "जांच करे के बा"
+            }.get(classification, tier_name)
+            script = "ट्रुथशील्ड पड़ताल रिपोर्ट: "
+            if clean_claim:
+                script += f"दावा \"{clean_claim}\" के जांच में, "
+            script += f"ई जानकारी {bho_tier}, जेहपर भरोसा {conf_pct} प्रतिशत बा। "
+            if first_reason:
+                script += f"मुख्य वजह: {first_reason}। "
+            if clean_rec:
+                script += f"सलाह बा कि: {clean_rec}। "
+            else:
+                script += "साझा करे से पहिले जांच जरूर करीं।"
+            return script
+
+        elif lang_id == "mai":
+            mai_tier = {
+                "Likely Reliable": "विश्वसनीय अछि",
+                "Potentially Misleading": "भ्रामक अछि",
+                "Likely False": "झूठ वा असत्य अछि",
+                "Needs Further Verification": "सत्यापन आवश्यक अछि"
+            }.get(classification, tier_name)
+            script = "ट्रुथशील्ड सत्यापन रिपोर्ट: "
+            if clean_claim:
+                script += f"दावा \"{clean_claim}\" क जांच में, "
+            script += f"ई जानकारी {mai_tier}, जाहि पर विश्वास {conf_pct} प्रतिशत अछि। "
+            if first_reason:
+                script += f"मुख्य कारण: {first_reason}। "
+            if clean_rec:
+                script += f"सलाह: {clean_rec}। "
+            else:
+                script += "कृपया साझा करबा सँ पहिने पुष्टि करू।"
+            return script
+
+        elif lang_id == "hi":
             script = "ट्रुथशील्ड सत्यापन रिपोर्ट: "
             if clean_claim:
                 script += f"दावे \"{clean_claim}\" की पड़ताल में, "
