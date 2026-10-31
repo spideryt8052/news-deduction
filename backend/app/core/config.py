@@ -66,6 +66,10 @@ class Settings(BaseSettings):
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = ""
+
+    # HTTP-based Email APIs (Critical for Render Free Tier which blocks raw SMTP ports 587/465)
+    RESEND_API_KEY: str = ""
+    BREVO_API_KEY: str = ""
     
     class Config:
         env_file = ENV_PATHS

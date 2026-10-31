@@ -1,8 +1,12 @@
+import os
 import time
 import random
 import logging
 import smtplib
 import ssl
+import json
+import urllib.request
+import urllib.error
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Any, Tuple, Optional
@@ -13,7 +17,13 @@ logger = logging.getLogger(__name__)
 class OtpService:
     """
     Manages secure 6-digit OTP generation, temporary caching, verification, 
-    and direct delivery to real Gmail / email inboxes via SMTP.
+    and direct delivery to real Gmail / email inboxes.
+    
+    Supports:
+    1. Resend HTTPS API (Recommended for Render Free Tier - zero port blocking)
+    2. Brevo HTTPS API (Sends to any email, 300 free emails/day)
+    3. Direct Gmail SMTP (For localhost or VPS with open SMTP ports)
+    
     NEVER exposes or renders the OTP on the user's screen.
     """
 
@@ -44,8 +54,8 @@ class OtpService:
             "attempts": 0
         }
 
-        # Attempt to dispatch email directly to Gmail/SMTP
-        email_sent, error_msg = cls._send_smtp_email(clean_email, otp, purpose)
+        # Attempt to dispatch email via Resend, Brevo, or SMTP
+        email_sent, error_msg = cls._dispatch_email(clean_email, otp, purpose)
 
         if not email_sent:
             # Clean up the pending OTP if delivery failed
@@ -99,31 +109,187 @@ class OtpService:
         return True, "Email verified successfully."
 
     @classmethod
-    def _send_smtp_email(cls, to_email: str, otp: str, purpose: str) -> Tuple[bool, str]:
+    def _dispatch_email(cls, to_email: str, otp: str, purpose: str) -> Tuple[bool, str]:
         """
-        Sends rich HTML verification email directly to user's Gmail/email.
-        Supports standard Gmail App Passwords and TLS port 587 or SSL port 465.
+        Smart multi-provider email dispatcher:
+        1. Checks for RESEND_API_KEY (HTTPS - Works 100% on Render Free Tier)
+        2. Checks for BREVO_API_KEY (HTTPS - Works 100% on Render Free Tier)
+        3. Tries standard Gmail SMTP (Port 587/465) with descriptive error handling
         """
+        html_body, text_body, subject = cls._build_email_templates(to_email, otp, purpose)
+
+        # 1. RESEND HTTPS API (Zero port blocking, works on Render)
+        resend_key = (getattr(settings, "RESEND_API_KEY", "") or os.environ.get("RESEND_API_KEY", "")).strip()
+        if resend_key:
+            success, msg = cls._send_via_resend(to_email, subject, html_body, text_body, resend_key)
+            if success:
+                return True, msg
+            logger.warning(f"Resend HTTP dispatch failed: {msg}. Falling back to next provider...")
+
+        # 2. BREVO HTTPS API (Zero port blocking, works on Render)
+        brevo_key = (getattr(settings, "BREVO_API_KEY", "") or os.environ.get("BREVO_API_KEY", "")).strip()
+        if brevo_key:
+            success, msg = cls._send_via_brevo(to_email, subject, html_body, text_body, brevo_key)
+            if success:
+                return True, msg
+            logger.warning(f"Brevo HTTP dispatch failed: {msg}. Falling back to next provider...")
+
+        # 3. DIRECT SMTP (Works on Localhost or paid servers without SMTP port blocks)
+        smtp_user = (getattr(settings, "SMTP_USER", "") or os.environ.get("SMTP_USER", "")).strip()
+        smtp_pass = (getattr(settings, "SMTP_PASSWORD", "") or getattr(settings, "SMTP_PASS", "") or os.environ.get("SMTP_PASSWORD", "")).strip()
+
+        if smtp_user and smtp_pass:
+            success, msg = cls._send_smtp_email(to_email, subject, html_body, text_body, smtp_user, smtp_pass)
+            if success:
+                return True, msg
+            
+            # Detect Render / Cloud Port Block error
+            if "101" in msg or "network is unreachable" in msg.lower() or "timed out" in msg.lower():
+                return False, (
+                    "Render Free Tier blocks outbound SMTP ports (587/465). "
+                    "To send emails from Render without port blocking, please add a free RESEND_API_KEY or BREVO_API_KEY "
+                    "in your Render Dashboard Environment Variables."
+                )
+            return False, msg
+
+        return False, (
+            "No email service is configured. "
+            "For Render Free hosting, add RESEND_API_KEY or BREVO_API_KEY in Render Environment Variables. "
+            "For local testing, configure SMTP_USER & SMTP_PASSWORD in backend/.env."
+        )
+
+    @classmethod
+    def _send_via_resend(cls, to_email: str, subject: str, html_body: str, text_body: str, api_key: str) -> Tuple[bool, str]:
+        """Dispatches email via Resend HTTPS REST API (Port 443)."""
+        url = "https://api.resend.com/emails"
+        sender_email = getattr(settings, "SMTP_FROM", "") or "TruthShield <onboarding@resend.dev>"
+        if "<" not in sender_email and "@" not in sender_email:
+            sender_email = "TruthShield <onboarding@resend.dev>"
+
+        payload = {
+            "from": sender_email,
+            "to": [to_email],
+            "subject": subject,
+            "html": html_body,
+            "text": text_body
+        }
+
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "User-Agent": "TruthShield-Verification/1.0"
+            },
+            method="POST"
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=12) as response:
+                if response.status in (200, 201):
+                    return True, "Email dispatched via Resend API"
+                return False, f"Resend API returned status code {response.status}"
+        except urllib.error.HTTPError as e:
+            err_data = e.read().decode("utf-8", errors="ignore")
+            logger.error(f"Resend API Error ({e.code}): {err_data}")
+            return False, f"Resend API Error: {err_data}"
+        except Exception as e:
+            logger.error(f"Resend Connection Error: {e}")
+            return False, f"Resend Connection Error: {str(e)}"
+
+    @classmethod
+    def _send_via_brevo(cls, to_email: str, subject: str, html_body: str, text_body: str, api_key: str) -> Tuple[bool, str]:
+        """Dispatches email via Brevo HTTPS REST API (Port 443)."""
+        url = "https://api.brevo.com/v3/smtp/email"
+        sender_email = getattr(settings, "SMTP_USER", "") or "security@truthshield.ai"
+
+        payload = {
+            "sender": {
+                "name": "TruthShield Security",
+                "email": sender_email if "@" in sender_email else "security@truthshield.ai"
+            },
+            "to": [{"email": to_email}],
+            "subject": subject,
+            "htmlContent": html_body,
+            "textContent": text_body
+        }
+
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "api-key": api_key,
+                "Content-Type": "application/json",
+                "accept": "application/json",
+                "User-Agent": "TruthShield-Verification/1.0"
+            },
+            method="POST"
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=12) as response:
+                if response.status in (200, 201):
+                    return True, "Email dispatched via Brevo API"
+                return False, f"Brevo API returned status code {response.status}"
+        except urllib.error.HTTPError as e:
+            err_data = e.read().decode("utf-8", errors="ignore")
+            logger.error(f"Brevo API Error ({e.code}): {err_data}")
+            return False, f"Brevo API Error: {err_data}"
+        except Exception as e:
+            logger.error(f"Brevo Connection Error: {e}")
+            return False, f"Brevo Connection Error: {str(e)}"
+
+    @classmethod
+    def _send_smtp_email(cls, to_email: str, subject: str, html_body: str, text_body: str, smtp_user: str, smtp_pass: str) -> Tuple[bool, str]:
+        """Sends rich HTML verification email via standard SMTP socket."""
         smtp_host = (getattr(settings, "SMTP_HOST", "") or "smtp.gmail.com").strip()
         smtp_port = int(getattr(settings, "SMTP_PORT", 587) or 587)
-        smtp_user = (getattr(settings, "SMTP_USER", "") or "").strip()
-        smtp_pass = (getattr(settings, "SMTP_PASSWORD", "") or getattr(settings, "SMTP_PASS", "") or "").strip()
-
-        if not smtp_user or not smtp_pass:
-            return False, (
-                "Gmail credentials are not configured on the server. "
-                "Please configure SMTP_USER (your Gmail) and SMTP_PASSWORD (Google 16-character App Password) "
-                "in backend/.env or your host environment."
-            )
-
         sender_from = f"TruthShield Security <{smtp_user}>"
 
+        try:
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = sender_from
+            msg["To"] = to_email
+            msg.attach(MIMEText(text_body, "plain"))
+            msg.attach(MIMEText(html_body, "html"))
+
+            if smtp_port == 465:
+                context = ssl.create_default_context()
+                server = smtplib.SMTP_SSL(smtp_host, smtp_port, context=context, timeout=8)
+                server.login(smtp_user, smtp_pass)
+            else:
+                server = smtplib.SMTP(smtp_host, smtp_port, timeout=8)
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(smtp_user, smtp_pass)
+
+            server.sendmail(smtp_user, [to_email], msg.as_string())
+            server.quit()
+            return True, "Email sent successfully via SMTP"
+
+        except smtplib.SMTPAuthenticationError as auth_err:
+            logger.error(f"Gmail SMTP Auth Error: {auth_err}")
+            return False, (
+                "Google Account Authentication Failed. "
+                "Gmail requires an 'App Password' (16 characters) instead of your regular password. "
+                "Generate one at Google Account -> Security -> 2-Step Verification -> App Passwords."
+            )
+        except Exception as e:
+            logger.error(f"SMTP Dispatch Error: {e}")
+            return False, f"Failed to connect to email server ({str(e)})"
+
+    @classmethod
+    def _build_email_templates(cls, to_email: str, otp: str, purpose: str) -> Tuple[str, str, str]:
+        """Constructs responsive HTML and plain text email content."""
         if purpose == "register":
             subject = f"TruthShield - Your 6-Digit Email Verification Code: {otp}"
             headline = "Verify Your Email Address"
             intro_text = (
-                "Welcome to TruthShield! To confirm that you are a valid authorized person, "
-                "please enter the 6-digit verification code below in your browser window."
+                "Welcome to TruthShield! To confirm that you are an authorized person, "
+                "please enter the 6-digit verification code below in your registration window."
             )
         else:
             subject = f"TruthShield - Your 6-Digit Login Code: {otp}"
@@ -132,6 +298,8 @@ class OtpService:
                 "You requested a passwordless login code for your TruthShield account. "
                 "Enter this one-time code to securely sign in."
             )
+
+        text_body = f"Your TruthShield verification code is: {otp}\n\nThis code expires in 10 minutes.\nDo not share this code with anyone."
 
         html_body = f"""<!DOCTYPE html>
 <html>
@@ -239,37 +407,4 @@ class OtpService:
   </div>
 </body>
 </html>"""
-
-        try:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = sender_from
-            msg["To"] = to_email
-            msg.attach(MIMEText(f"Your TruthShield verification code is: {otp}\n\nThis code expires in 10 minutes.\nDo not share it with anyone.", "plain"))
-            msg.attach(MIMEText(html_body, "html"))
-
-            if smtp_port == 465:
-                context = ssl.create_default_context()
-                server = smtplib.SMTP_SSL(smtp_host, smtp_port, context=context, timeout=15)
-                server.login(smtp_user, smtp_pass)
-            else:
-                server = smtplib.SMTP(smtp_host, smtp_port, timeout=15)
-                server.ehlo()
-                server.starttls()
-                server.ehlo()
-                server.login(smtp_user, smtp_pass)
-
-            server.sendmail(smtp_user, [to_email], msg.as_string())
-            server.quit()
-            return True, "Email sent successfully"
-
-        except smtplib.SMTPAuthenticationError as auth_err:
-            logger.error(f"Gmail SMTP Auth Error: {auth_err}")
-            return False, (
-                "Google Account Authentication Failed. "
-                "Gmail requires an 'App Password' (16 characters) instead of your regular password. "
-                "Generate one at Google Account -> Security -> 2-Step Verification -> App Passwords."
-            )
-        except Exception as e:
-            logger.error(f"SMTP Dispatch Error: {e}")
-            return False, f"Failed to connect to email server ({str(e)})."
+        return html_body, text_body, subject
