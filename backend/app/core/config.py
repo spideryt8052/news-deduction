@@ -70,6 +70,11 @@ class Settings(BaseSettings):
     # HTTP-based Email APIs (Critical for Render Free Tier which blocks raw SMTP ports 587/465)
     RESEND_API_KEY: str = ""
     BREVO_API_KEY: str = ""
+
+    # Local Ollama / Offline LLM Configuration (Zero Internet Required)
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "llama3.2"  # or llama3.1, mistral, phi3, qwen2.5, deepseek-r1
+    OLLAMA_TIMEOUT: int = 90  # seconds (local models may take longer on laptop CPU)
     
     class Config:
         env_file = ENV_PATHS

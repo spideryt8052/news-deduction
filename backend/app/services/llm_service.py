@@ -142,13 +142,25 @@ class LLMService:
         return None
 
     @classmethod
+    def check_ollama_alive(cls, base_url: Optional[str] = None) -> bool:
+        """Quick check to see if local Ollama instance is reachable."""
+        host = (base_url or getattr(settings, "OLLAMA_BASE_URL", "http://localhost:11434")).rstrip("/")
+        try:
+            with httpx.Client(timeout=1.5) as client:
+                resp = client.get(f"{host}/api/tags")
+                return resp.status_code == 200
+        except Exception:
+            return False
+
+    @classmethod
     def get_active_keys_status(cls) -> Dict[str, bool]:
         """Returns dict of which AI providers currently have valid credentials configured."""
         return {
             "groq": bool(cls.get_key_for_provider("groq")),
             "gemini": bool(cls.get_key_for_provider("gemini")),
             "openai": bool(cls.get_key_for_provider("openai")),
-            "anthropic": bool(cls.get_key_for_provider("anthropic"))
+            "anthropic": bool(cls.get_key_for_provider("anthropic")),
+            "ollama": cls.check_ollama_alive()
         }
 
     @classmethod
@@ -311,6 +323,72 @@ class LLMService:
             return None
 
     @classmethod
+    def call_ollama(
+        cls, 
+        prompt_content: str, 
+        model: Optional[str] = None, 
+        base_url: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Invokes Local Ollama instance (100% Offline / Local Laptop).
+        Zero external API calls, runs completely private on user's machine.
+        """
+        host = (base_url or getattr(settings, "OLLAMA_BASE_URL", "http://localhost:11434")).rstrip("/")
+        model_name = (model or getattr(settings, "OLLAMA_MODEL", "llama3.2")).strip()
+        timeout_seconds = getattr(settings, "OLLAMA_TIMEOUT", 90)
+
+        # 1. Try Ollama native chat endpoint with JSON format
+        url_native = f"{host}/api/chat"
+        payload_native = {
+            "model": model_name,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt_content}
+            ],
+            "format": "json",
+            "stream": False,
+            "options": {
+                "temperature": 0.2
+            }
+        }
+
+        try:
+            with httpx.Client(timeout=timeout_seconds) as client:
+                resp = client.post(url_native, json=payload_native)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    content = data.get("message", {}).get("content", "")
+                    parsed = extract_json_from_text(content)
+                    if parsed:
+                        return parsed
+        except Exception as e:
+            print(f"Ollama native invocation notice: {str(e)}")
+
+        # 2. Fallback to Ollama OpenAI-compatible endpoint
+        url_openai = f"{host}/v1/chat/completions"
+        payload_openai = {
+            "model": model_name,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt_content}
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.2
+        }
+
+        try:
+            with httpx.Client(timeout=timeout_seconds) as client:
+                resp = client.post(url_openai, json=payload_openai)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    content = data["choices"][0]["message"]["content"]
+                    return extract_json_from_text(content)
+        except Exception as e:
+            print(f"Ollama OpenAI-compatible endpoint error: {str(e)}")
+
+        return None
+
+    @classmethod
     def test_key(cls, provider: str, api_key: str) -> Tuple[bool, str]:
         """Validates an API key on demand by sending a lightweight test query."""
         test_prompt = "Classify this short test: 'Drinking clean water is good for hydration.'"
@@ -340,6 +418,24 @@ class LLMService:
                 return True, "Anthropic API key verified successfully! (Model: Claude 3.5 Haiku)"
             return False, "Failed to authenticate with Anthropic. Please check your API key."
 
+        elif provider_clean in ["ollama", "local"]:
+            host = (api_key if (api_key and api_key.startswith("http")) else getattr(settings, "OLLAMA_BASE_URL", "http://localhost:11434")).rstrip("/")
+            target_model = api_key if (api_key and not api_key.startswith("http")) else getattr(settings, "OLLAMA_MODEL", "llama3.2")
+            try:
+                with httpx.Client(timeout=4.0) as client:
+                    resp = client.get(f"{host}/api/tags")
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        models = [m.get("name") for m in data.get("models", []) if "name" in m]
+                        models_str = ", ".join(models[:4]) if models else "none yet (run: ollama pull llama3.2)"
+                        return True, f"Ollama is online locally at {host}! Installed models: {models_str}. Active: {target_model}."
+                    return False, f"Ollama returned HTTP status {resp.status_code}."
+            except Exception as e:
+                return False, (
+                    f"Cannot reach local Ollama at {host}. "
+                    "Make sure Ollama is installed (https://ollama.com) and running locally (`ollama serve`)."
+                )
+
         return False, f"Unknown AI provider: {provider}"
 
     @classmethod
@@ -366,6 +462,10 @@ class LLMService:
                 result = cls.call_openai(prompt, api_key=api_key)
             elif target_provider == "anthropic":
                 result = cls.call_anthropic(prompt, api_key=api_key)
+            elif target_provider in ["ollama", "local"]:
+                m_override = api_key if (api_key and not api_key.startswith("http")) else None
+                url_override = api_key if (api_key and api_key.startswith("http")) else None
+                result = cls.call_ollama(prompt, model=m_override, base_url=url_override)
             elif target_provider in ["auto", "llm"]:
                 # Auto-detect available keys in priority order
                 # If a client passed an api_key without specifying provider, auto-detect by prefix:
@@ -379,15 +479,18 @@ class LLMService:
                         result = cls.call_anthropic(prompt, api_key=api_key)
                     elif detected == "openai":
                         result = cls.call_openai(prompt, api_key=api_key)
+                    elif api_key.startswith("http") or any(m in api_key.lower() for m in ["llama", "mistral", "qwen", "phi"]):
+                        result = cls.call_ollama(prompt, model=api_key if not api_key.startswith("http") else None, base_url=api_key if api_key.startswith("http") else None)
                     else:
-                        # Try Groq, then Gemini, then OpenAI
+                        # Try Groq, then Gemini, then OpenAI, then Ollama
                         result = (
                             cls.call_groq(prompt, api_key=api_key) or
                             cls.call_gemini(prompt, api_key=api_key) or
-                            cls.call_openai(prompt, api_key=api_key)
+                            cls.call_openai(prompt, api_key=api_key) or
+                            cls.call_ollama(prompt)
                         )
                 else:
-                    # Check configured keys from .env in preferred order (Groq -> Gemini -> OpenAI -> Anthropic)
+                    # Check configured keys from .env in preferred order (Groq -> Gemini -> OpenAI -> Anthropic -> Ollama)
                     if cls.get_key_for_provider("groq"):
                         result = cls.call_groq(prompt)
                     elif cls.get_key_for_provider("gemini"):
@@ -396,12 +499,15 @@ class LLMService:
                         result = cls.call_openai(prompt)
                     elif cls.get_key_for_provider("anthropic"):
                         result = cls.call_anthropic(prompt)
+                    elif cls.check_ollama_alive():
+                        result = cls.call_ollama(prompt)
                     elif settings.API_KEY:
                         # Fallback for generic key
                         result = (
                             cls.call_groq(prompt, api_key=settings.API_KEY) or
                             cls.call_gemini(prompt, api_key=settings.API_KEY) or
-                            cls.call_openai(prompt, api_key=settings.API_KEY)
+                            cls.call_openai(prompt, api_key=settings.API_KEY) or
+                            (cls.call_ollama(prompt) if cls.check_ollama_alive() else None)
                         )
 
         except Exception as e:
@@ -624,7 +730,43 @@ class LLMService:
             except Exception as e:
                 print(f"OpenAI chat error: {e}")
 
-        # 4. High-Quality Human-like Fallback (Offline / Resilient Mode)
+        # 4. Try Ollama (Local LLM / 100% Offline)
+        use_ollama = (provider in ["ollama", "local"]) or (provider == "auto" and not (gemini_key or groq_key or openai_key) and cls.check_ollama_alive())
+        if use_ollama:
+            try:
+                host = getattr(settings, "OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+                model_name = getattr(settings, "OLLAMA_MODEL", "llama3.2")
+                if api_key:
+                    if api_key.startswith("http"):
+                        host = api_key.rstrip("/")
+                    else:
+                        model_name = api_key.strip()
+                
+                messages = [{"role": "system", "content": system_instruction}]
+                for item in history[-6:]:
+                    messages.append({"role": item.get("role", "user"), "content": item.get("content", "")})
+                messages.append({"role": "user", "content": message})
+
+                timeout_s = getattr(settings, "OLLAMA_TIMEOUT", 90)
+                with httpx.Client(timeout=timeout_s) as client:
+                    resp = client.post(f"{host}/api/chat", json={
+                        "model": model_name,
+                        "messages": messages,
+                        "stream": False,
+                        "options": {"temperature": temperature}
+                    })
+                    if resp.status_code == 200:
+                        text = resp.json().get("message", {}).get("content", "").strip()
+                        return {
+                            "response": text,
+                            "provider": "ollama",
+                            "model": model_name,
+                            "suggested_questions": cls._generate_suggestions(message, text)
+                        }
+            except Exception as e:
+                print(f"Ollama chat error: {e}")
+
+        # 5. High-Quality Human-like Fallback (Offline / Resilient Mode)
         fallback_text = cls._generate_human_fallback_chat(message, language=lang_code)
         return {
             "response": fallback_text,

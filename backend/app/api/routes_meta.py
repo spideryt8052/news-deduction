@@ -48,8 +48,8 @@ async def get_ai_status():
     # Determine default effective provider
     effective = settings.AI_PROVIDER
     if effective == "auto":
-        for p in ["groq", "gemini", "openai", "anthropic"]:
-            if keys_status[p]:
+        for p in ["groq", "gemini", "openai", "anthropic", "ollama"]:
+            if keys_status.get(p):
                 effective = p
                 break
         if effective == "auto":
@@ -63,14 +63,16 @@ async def get_ai_status():
             "groq": settings.GROQ_MODEL,
             "gemini": settings.GEMINI_MODEL,
             "openai": settings.OPENAI_MODEL,
-            "anthropic": settings.ANTHROPIC_MODEL
+            "anthropic": settings.ANTHROPIC_MODEL,
+            "ollama": getattr(settings, "OLLAMA_MODEL", "llama3.2")
         },
-        "supported_providers": ["groq", "gemini", "openai", "anthropic", "mock"]
+        "supported_providers": ["groq", "gemini", "openai", "anthropic", "ollama", "mock"]
     }
 
 @router.post("/config/test-key", response_model=TestKeyResponse, summary="Test and validate an AI API Key")
 async def test_api_key(payload: TestKeyRequest):
-    if not payload.api_key.strip():
+    provider_clean = payload.provider.strip().lower()
+    if provider_clean not in ["ollama", "local", "mock"] and not payload.api_key.strip():
         raise HTTPException(status_code=400, detail="API Key cannot be empty.")
         
     success, msg = LLMService.test_key(payload.provider, payload.api_key)

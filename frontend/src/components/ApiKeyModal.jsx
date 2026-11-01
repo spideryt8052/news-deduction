@@ -61,6 +61,18 @@ const PROVIDERS = [
     model: 'claude-3-5-haiku',
   },
   {
+    id: 'ollama',
+    name: 'Ollama (Local Offline LLM)',
+    badge: '100% Offline / Local Laptop',
+    badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+    description: 'Runs on your own machine via Ollama (http://localhost:11434). Zero internet needed, completely private.',
+    keyPrefix: '',
+    keyUrl: 'https://ollama.com',
+    keyPlaceholder: 'Model name (default: llama3.2)',
+    model: 'llama3.2 / mistral / phi3 / qwen2.5',
+    isLocal: true,
+  },
+  {
     id: 'mock',
     name: 'Local Heuristic Engine',
     badge: '100% Offline / Local Safe',
@@ -103,6 +115,7 @@ export default function ApiKeyModal({ isOpen, onClose, onConfigSaved }) {
 
   const currentProviderConfig = PROVIDERS.find(p => p.id === selectedProvider) || PROVIDERS[0];
   const isMock = selectedProvider === 'mock';
+  const isOllama = selectedProvider === 'ollama';
 
   const handleTestKey = async () => {
     if (isMock) {
@@ -110,6 +123,26 @@ export default function ApiKeyModal({ isOpen, onClose, onConfigSaved }) {
         success: true,
         message: 'Local Heuristic Engine is always ready! No network or API key required.'
       });
+      return;
+    }
+
+    if (isOllama) {
+      setTesting(true);
+      setTestResult(null);
+      try {
+        const res = await api.testApiKey('ollama', apiKey.trim());
+        setTestResult({
+          success: res.success,
+          message: res.message
+        });
+      } catch (err) {
+        setTestResult({
+          success: false,
+          message: formatApiError(err)
+        });
+      } finally {
+        setTesting(false);
+      }
       return;
     }
 
@@ -249,7 +282,7 @@ export default function ApiKeyModal({ isOpen, onClose, onConfigSaved }) {
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                   <Key className="w-3.5 h-3.5 text-cyan-400" />
-                  Your {currentProviderConfig.name} API Key
+                  {isOllama ? 'Local Model Name or Host (Optional)' : `Your ${currentProviderConfig.name} API Key`}
                 </label>
                 {currentProviderConfig.keyUrl && (
                   <a
@@ -258,36 +291,41 @@ export default function ApiKeyModal({ isOpen, onClose, onConfigSaved }) {
                     rel="noreferrer"
                     className="text-xs text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-1 transition-colors"
                   >
-                    Get Free Key <ExternalLink className="w-3 h-3" />
+                    {isOllama ? 'Ollama Guide' : 'Get Free Key'} <ExternalLink className="w-3 h-3" />
                   </a>
                 )}
               </div>
 
               <div className="relative">
                 <input
-                  type={showKey ? 'text' : 'password'}
+                  type={isOllama ? 'text' : (showKey ? 'text' : 'password')}
                   value={apiKey}
                   onChange={(e) => {
                     setApiKey(e.target.value);
                     setTestResult(null);
                   }}
-                  placeholder={`Paste your key (e.g. ${currentProviderConfig.keyPlaceholder})`}
+                  placeholder={isOllama ? 'e.g. llama3.2:1b, llama3.2, qwen2.5-coder, or leave empty' : `Paste your key (e.g. ${currentProviderConfig.keyPlaceholder})`}
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 pr-20 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
                 />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setShowKey(!showKey)}
-                    className="p-1.5 text-slate-400 hover:text-white rounded"
-                    title={showKey ? "Hide key" : "Show key"}
-                  >
-                    {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
+                {!isOllama && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowKey(!showKey)}
+                      className="p-1.5 text-slate-400 hover:text-white rounded"
+                      title={showKey ? "Hide key" : "Show key"}
+                    >
+                      {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                )}
               </div>
 
               <p className="text-[11px] text-slate-400">
-                🔒 Key is stored locally in your browser session or sent securely via encrypted HTTPS request headers.
+                {isOllama 
+                  ? '⚡ 100% Offline: Connects to your local Ollama on port 11434. Zero internet required and your data stays completely private.'
+                  : '🔒 Key is stored locally in your browser session or sent securely via encrypted HTTPS request headers.'
+                }
               </p>
             </div>
           ) : (
@@ -345,18 +383,18 @@ export default function ApiKeyModal({ isOpen, onClose, onConfigSaved }) {
           <button
             type="button"
             onClick={handleTestKey}
-            disabled={testing || (!isMock && !apiKey.trim())}
+            disabled={testing || (!isMock && !isOllama && !apiKey.trim())}
             className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {testing ? (
               <>
                 <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
-                Testing Key...
+                {isOllama ? 'Testing Ollama...' : 'Testing Key...'}
               </>
             ) : (
               <>
                 <Zap className="w-3.5 h-3.5 text-cyan-400" />
-                Test Connection
+                {isOllama ? 'Test Ollama (Offline)' : 'Test Connection'}
               </>
             )}
           </button>
