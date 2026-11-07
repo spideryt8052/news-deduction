@@ -64,7 +64,8 @@ _allowed_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:4173",
-    "http://127.0.0.1:4173"
+    "http://127.0.0.1:4173",
+    "https://news-deduction.onrender.com"
 ]
 for _o in settings.CORS_ORIGINS:
     if _o != "*" and _o not in _allowed_origins:
@@ -73,7 +74,7 @@ for _o in settings.CORS_ORIGINS:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$",
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|.*\.netlify\.app|.*\.onrender\.com)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -3,6 +3,15 @@
   publish = "dist"
   command = "npm run build"
 
+[build.environment]
+  VITE_API_URL = "https://news-deduction.onrender.com"
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://news-deduction.onrender.com/api/:splat"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
