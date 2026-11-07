@@ -27,11 +27,15 @@ import {
   Play,
   Pause,
   ExternalLink,
-  FileCheck
+  FileCheck,
+  BookOpen,
+  SkipBack,
+  SkipForward
 } from 'lucide-react';
 import api, { formatApiError } from '../services/api';
 import voiceService, { OMNIVOICE_LANGUAGES } from '../services/voiceService';
 import audioStudio, { BEAT_PRESETS } from '../services/audioStudioService';
+import smartDocumentPlayer from '../services/smartStreamService';
 
 const SAMPLE_TEXTS = [
   {
@@ -92,12 +96,38 @@ export default function TranslatePage() {
   const [isMixingDownload, setIsMixingDownload] = useState(false);
   const [downloadingSide, setDownloadingSide] = useState(null); // 'input' | 'output' | null
 
+  // 500-Word Smart Part Streaming Reader State
+  const [docParts, setDocParts] = useState([]);
+  const [activeDocPartIndex, setActiveDocPartIndex] = useState(0);
+  const [showSmartReader, setShowSmartReader] = useState(false);
+  const [stitchingProgress, setStitchingProgress] = useState('');
+
   // Suno AI Song Mode Modal / Panel
   const [showSunoModal, setShowSunoModal] = useState(false);
   const [sunoPromptText, setSunoPromptText] = useState('');
   const [copiedSuno, setCopiedSuno] = useState(false);
 
   const inputAreaRef = useRef(null);
+
+  // Auto-split text into 500-word parts whenever a long document is present
+  useEffect(() => {
+    const text = inputText.trim();
+    const wordCount = text.split(/\s+/).filter(Boolean).length;
+    if (wordCount > 300) {
+      const parts = smartDocumentPlayer.init(
+        text, 
+        sourceLang === 'auto' ? 'hi' : sourceLang, 
+        voiceGender, 
+        450
+      );
+      setDocParts(parts);
+      setActiveDocPartIndex(0);
+      setShowSmartReader(true);
+    } else {
+      setDocParts([]);
+      setShowSmartReader(false);
+    }
+  }, [inputText, sourceLang, voiceGender]);
 
   // Sync voice gender across tabs and components
   useEffect(() => {
@@ -107,6 +137,8 @@ export default function TranslatePage() {
     window.addEventListener('truthshield-voice-gender-changed', handleGenderChange);
     return () => {
       voiceService.stopSpeaking();
+      smartDocumentPlayer.stop();
+      smartDocumentPlayer.clearCache();
       audioStudio.stopLiveBeat();
       window.removeEventListener('truthshield-voice-gender-changed', handleGenderChange);
     };
@@ -235,16 +267,69 @@ export default function TranslatePage() {
     }
   };
 
-  // Audio Playback for Input or Output (with Beat Synchronized)
+  // -------------------------------------------------------------
+  // 500-Word Smart Part Streaming Reader Handlers
+  // -------------------------------------------------------------
+  const handleJumpToPart = (index) => {
+    if (!docParts || index < 0 || index >= docParts.length) return;
+    voiceService.stopSpeaking();
+    setActiveDocPartIndex(index);
+    setActivePlayingSide('input');
+    if (selectedBeat !== 'none') {
+      audioStudio.playLiveBeat(selectedBeat, beatVolume);
+    }
+    smartDocumentPlayer.playPart(index, {
+      onPartChange: (idx) => setActiveDocPartIndex(idx),
+      onEnd: () => {
+        setActivePlayingSide(null);
+        audioStudio.stopLiveBeat();
+      },
+      onError: (err) => {
+        console.warn('Smart reader playback error:', err);
+        setActivePlayingSide(null);
+        audioStudio.stopLiveBeat();
+      }
+    });
+  };
+
+  const handleToggleSmartReaderPlay = () => {
+    if (activePlayingSide) {
+      smartDocumentPlayer.pause();
+      audioStudio.stopLiveBeat();
+      setActivePlayingSide(null);
+    } else {
+      handleJumpToPart(activeDocPartIndex);
+    }
+  };
+
+  const handleDownloadFullStitchedAudio = async () => {
+    setStitchingProgress('Merging Part 1...');
+    try {
+      await smartDocumentPlayer.downloadFullCombinedAudio(
+        `truthshield-document-${voiceGender}.mp3`,
+        (current, total) => {
+          setStitchingProgress(`Merging Part ${current}/${total}...`);
+        }
+      );
+    } catch (e) {
+      console.error('Stitched download error:', e);
+    } finally {
+      setStitchingProgress('');
+    }
+  };
+
+  // Audio Playback for Input or Output (with Smart 500-Word Streaming when long)
   const handleTogglePlay = async (side) => {
     if (activePlayingSide === side) {
       voiceService.stopSpeaking();
+      smartDocumentPlayer.stop();
       audioStudio.stopLiveBeat();
       setActivePlayingSide(null);
       return;
     }
 
     voiceService.stopSpeaking();
+    smartDocumentPlayer.stop();
     audioStudio.stopLiveBeat();
     setIsPlayingBeatSolo(false);
 
@@ -252,6 +337,14 @@ export default function TranslatePage() {
     const lang = side === 'input' ? (sourceLang === 'auto' ? 'hi' : sourceLang) : targetLang;
 
     if (!text || !text.trim()) return;
+
+    const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+
+    // If large document (> 300 words), stream via 500-word smart reader
+    if (wordCount > 300 && side === 'input') {
+      handleJumpToPart(activeDocPartIndex);
+      return;
+    }
 
     setActivePlayingSide(side);
 
@@ -963,6 +1056,144 @@ export default function TranslatePage() {
           )}
         </button>
       </div>
+
+      {/* 500-WORD SMART STREAMING DOCUMENT READER PANEL */}
+      {docParts.length > 1 && (
+        <div className="glass-panel p-6 rounded-3xl border border-cyan-500/40 bg-gradient-to-r from-dark-900/95 via-cyan-950/30 to-dark-900/95 backdrop-blur-xl shadow-2xl space-y-4 animate-fade-in">
+          {/* Header with Title, Badges & Navigation Buttons */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/20">
+                <BookOpen className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                  <span>Smart Document Reader (500 शब्दों के टुकड़ों में तेज़ वाचन)</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold">
+                    {docParts.length} Parts • 1-Sec Instant Play
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Lambi PDF ko 450-500 words me split kiya gaya hai. Part 1 turant shuru hota hai aur agle parts background memory me ready rehte hain.
+                </p>
+              </div>
+            </div>
+
+            {/* Part Navigation Controls */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleJumpToPart(activeDocPartIndex - 1)}
+                disabled={activeDocPartIndex <= 0}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                title="Previous Part (पिछला हिस्सा)"
+              >
+                <SkipBack className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleToggleSmartReaderPlay}
+                className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-dark-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-cyan-500/25 cursor-pointer transition-all"
+              >
+                {activePlayingSide ? (
+                  <>
+                    <Pause className="w-3.5 h-3.5" />
+                    <span>Pause Part {activeDocPartIndex + 1}</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5" />
+                    <span>Play Part {activeDocPartIndex + 1}</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleJumpToPart(activeDocPartIndex + 1)}
+                disabled={activeDocPartIndex >= docParts.length - 1}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                title="Next Part (अगला हिस्सा)"
+              >
+                <SkipForward className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Part Selection Pills Bar */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+            {docParts.map((p, idx) => {
+              const isActive = activeDocPartIndex === idx;
+              const isCached = smartDocumentPlayer.audioCache.has(idx);
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleJumpToPart(idx)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                    isActive
+                      ? 'bg-cyan-500 text-dark-950 ring-2 ring-cyan-300 shadow-md shadow-cyan-500/20'
+                      : 'bg-dark-900/80 hover:bg-slate-800 text-slate-300 border border-slate-700'
+                  }`}
+                >
+                  <span>Part {idx + 1}</span>
+                  <span className={`text-[10px] ${isActive ? 'text-dark-900/80 font-bold' : 'text-slate-500'}`}>
+                    ({p.wordCount}w)
+                  </span>
+                  {isCached && <span className="text-[10px]" title="Cached in memory ⚡">⚡</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Current Part Preview & Action Tools */}
+          {docParts[activeDocPartIndex] && (
+            <div className="p-3.5 rounded-2xl bg-dark-950/70 border border-slate-800 text-xs text-slate-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex-1 overflow-hidden">
+                <span className="font-semibold text-cyan-300 mr-2">
+                  Part {activeDocPartIndex + 1} Preview:
+                </span>
+                <span className="italic text-slate-400">
+                  "{docParts[activeDocPartIndex].preview}"
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => smartDocumentPlayer.downloadPart(activeDocPartIndex)}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                  title="Download this specific part as MP3"
+                >
+                  <Download className="w-3 h-3 text-slate-400" />
+                  <span>Part {activeDocPartIndex + 1} MP3</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDownloadFullStitchedAudio}
+                  disabled={!!stitchingProgress}
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-500/20 to-cyan-500/20 hover:from-blue-500/30 hover:to-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-colors"
+                  title="Download full continuous document MP3 (All parts stitched together)"
+                >
+                  {stitchingProgress ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin text-cyan-300" />
+                      <span>{stitchingProgress}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-3 h-3 text-cyan-400" />
+                      <span>Download All Parts Stitched (MP3)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* BACKGROUND BEAT & MUSIC STUDIO PANEL */}
       <div className="glass-panel p-6 rounded-3xl border border-white/10 bg-dark-800/80 backdrop-blur-xl shadow-xl space-y-4">
