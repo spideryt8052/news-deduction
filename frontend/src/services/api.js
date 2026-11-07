@@ -78,6 +78,8 @@ export const formatApiError = (error) => {
     }
     if (data?.message) return data.message;
     return `Server error (${error.response.status}): ${error.response.statusText}`;
+  } else if (error.code === 'ECONNABORTED' || error.message?.toLowerCase().includes('timeout')) {
+    return 'Processing took too long and timed out. Please try with a smaller document or section.';
   } else if (error.request || error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
     return 'Backend server is unreachable on port 8000. Please ensure the backend is running (e.g., uvicorn app.main:app --reload).';
   } else {
@@ -173,20 +175,6 @@ export const api = {
 
   submitReport: async (report) => {
     const res = await client.post('/api/report', report);
-    return res.data;
-  },
-
-  // --- Multilingual Translation API ---
-  translateText: async (text, targetLang = 'hi', sourceLang = 'auto') => {
-    const { provider, apiKey } = getStoredAiConfig();
-    const payload = {
-      text,
-      target_lang: targetLang,
-      source_lang: sourceLang,
-      provider: provider && provider !== 'auto' ? provider : undefined,
-      api_key: apiKey || undefined,
-    };
-    const res = await client.post('/api/translate', payload);
     return res.data;
   },
 
@@ -327,6 +315,7 @@ export const api = {
     formData.append('file', file);
     const res = await client.post('/api/translate/extract-doc', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
     });
     return res.data;
   },
@@ -341,6 +330,8 @@ export const api = {
         source_lang: sourceLang,
         provider: provider && provider !== 'auto' ? provider : undefined,
         api_key: apiKey || undefined,
+      }, {
+        timeout: 60000,
       });
       return res.data;
     } catch (error) {
