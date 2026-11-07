@@ -299,15 +299,41 @@ export const api = {
 
   // --- Multilingual Translation Engine ---
   translateText: async (text, targetLang = 'hi', sourceLang = 'auto') => {
-    const { provider, apiKey } = getStoredAiConfig();
-    const res = await client.post('/api/translate', {
-      text,
-      target_lang: targetLang,
-      source_lang: sourceLang,
-      provider: provider && provider !== 'auto' ? provider : undefined,
-      api_key: apiKey || undefined,
-    });
-    return res.data;
+    try {
+      const { provider, apiKey } = getStoredAiConfig();
+      const res = await client.post('/api/translate', {
+        text,
+        target_lang: targetLang,
+        source_lang: sourceLang,
+        provider: provider && provider !== 'auto' ? provider : undefined,
+        api_key: apiKey || undefined,
+      });
+      return res.data;
+    } catch (error) {
+      // Zero-failure client-side fallback if backend is offline or port 8000 is unreachable
+      console.warn('Backend translation unreachable, falling back to browser direct engine:', error);
+      try {
+        const sl = sourceLang || 'auto';
+        const tl = targetLang.split('-')[0].toLowerCase();
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(sl)}&tl=${encodeURIComponent(tl)}&dt=t&q=${encodeURIComponent(text)}`;
+        const fallbackRes = await axios.get(url);
+        if (fallbackRes.data && fallbackRes.data[0]) {
+          const translated = fallbackRes.data[0].map(chunk => chunk[0]).filter(Boolean).join('');
+          if (translated) {
+            return {
+              status: 'success',
+              translated_text: translated,
+              target_lang: targetLang,
+              source_lang: sourceLang,
+              engine: 'instant-engine'
+            };
+          }
+        }
+      } catch (fallbackErr) {
+        console.warn('Browser direct translation fallback failed:', fallbackErr);
+      }
+      throw error;
+    }
   },
 };
 
