@@ -38,6 +38,7 @@ export default function Navbar() {
     { name: 'Home', path: '/' },
     { name: 'Ask AI', path: '/chat', isAi: true },
     { name: 'Analyze Claim', path: '/analyze' },
+    { name: 'Translate & Audio', path: '/translate' },
     { name: 'Fact-Check Guide', path: '/learn' },
     { name: 'Live Dashboard', path: '/dashboard' },
     { name: 'About', path: '/about' },

@@ -687,14 +687,14 @@ class VoiceService {
         preferredVoice = voices.find(v => v.lang.toLowerCase().replace('_', '-').startsWith('hi') && matchGender(v));
       }
 
-      // 6. Any voice if matching gender voice not found
-      if (!preferredVoice) {
-        preferredVoice = voices.find(v => v.lang.toLowerCase().replace('_', '-').startsWith(langPrefix));
-      }
+      // STRICT GENDER GUARD:
+      // If the user requested 'male' and browser only has a female voice (e.g. Chrome's 'Google हिन्दी'),
+      // or if user requested 'female' and browser only has a male voice (e.g. 'Microsoft Madhur'),
+      // DO NOT fallback to the opposite gender! Leave preferredVoice = null so it streams from
+      // OmniVoice (which uses authentic Microsoft Neural male/female voices: Madhur Neural / Swara Neural).
     }
 
-    // IF browser has NO matching voice installed for this language, stream directly from OmniVoice!
-    // (Crucial for Urdu, Punjabi, Marathi, Tamil, Telugu, Kannada, Gujarati, Arabic, Russian, etc. on Windows)
+    // IF browser has NO verified gender-matching voice installed for this language, stream directly from OmniVoice!
     if (!preferredVoice || !this.isSpeechSynthesisSupported()) {
       return this.playAudioStream(speechText, lang, { gender: targetGender, onStart, onEnd, onError });
     }

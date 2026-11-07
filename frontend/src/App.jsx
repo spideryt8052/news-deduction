@@ -13,6 +13,7 @@ import RegisterPage from './pages/RegisterPage';
 import UserPanelPage from './pages/UserPanelPage';
 import AdminPanelPage from './pages/AdminPanelPage';
 import ChatPage from './pages/ChatPage';
+import TranslatePage from './pages/TranslatePage';
 import VoiceAssistantWidget from './components/VoiceAssistantWidget';
 import { AuthProvider } from './context/AuthContext';
 
@@ -43,6 +44,11 @@ export default function App() {
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/ask" element={<Navigate to="/chat" replace />} />
             <Route path="/assistant" element={<Navigate to="/chat" replace />} />
+
+            {/* Dedicated Translation & Voice Studio */}
+            <Route path="/translate" element={<TranslatePage />} />
+            <Route path="/audio" element={<Navigate to="/translate" replace />} />
+            <Route path="/translator" element={<Navigate to="/translate" replace />} />
 
             {/* Authentication & User Panel */}
             <Route path="/login" element={<LoginPage />} />
