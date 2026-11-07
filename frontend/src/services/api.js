@@ -297,6 +297,40 @@ export const api = {
     return res.data;
   },
 
+  // --- Document Text Extraction (PDF, DOCX, TXT, MD, CSV, JSON) ---
+  extractDocumentText: async (file) => {
+    const ext = file.name.split('.').pop().toLowerCase();
+
+    // Fast client-side reading for text-based formats (instant, works 100% offline)
+    if (['txt', 'md', 'json', 'csv'].includes(ext)) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const content = e.target.result || '';
+          resolve({
+            status: 'success',
+            filename: file.name,
+            file_type: ext,
+            pages: 1,
+            char_count: content.length,
+            word_count: content.trim().split(/\s+/).filter(Boolean).length,
+            extracted_text: content,
+          });
+        };
+        reader.onerror = () => reject(new Error('Failed to read text file.'));
+        reader.readAsText(file);
+      });
+    }
+
+    // For PDF and DOCX, process via server-side pypdf / python-docx engine
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await client.post('/api/translate/extract-doc', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data;
+  },
+
   // --- Multilingual Translation Engine ---
   translateText: async (text, targetLang = 'hi', sourceLang = 'auto') => {
     try {

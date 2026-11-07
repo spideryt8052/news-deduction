@@ -839,6 +839,25 @@ class VoiceService {
   }
 
   // -------------------------------------------------------------
+  // Fetch Audio ArrayBuffer for Audio Studio Mixing & Beat Blending
+  // -------------------------------------------------------------
+  async getAudioArrayBuffer(text, lang = 'hi', gender = null) {
+    if (!text || !text.trim()) return null;
+    const langKey = (lang || 'hi').split('-')[0].toLowerCase();
+    const cleanText = toHumanSpeechText(text, { conversational: false, lang: langKey });
+    if (!cleanText) return null;
+
+    const targetGender = gender || this.getGender() || 'female';
+    const base = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '') || (import.meta.env.VITE_API_URL || '');
+    const cleanBase = base ? base.replace(/\/$/, '') : '';
+    const audioUrl = `${cleanBase}/api/omnivoice/audio?text=${encodeURIComponent(cleanText)}&lang=${encodeURIComponent(langKey)}&gender=${encodeURIComponent(targetGender)}`;
+
+    const res = await fetch(audioUrl);
+    if (!res.ok) throw new Error('Speech synthesis audio stream failed.');
+    return await res.arrayBuffer();
+  }
+
+  // -------------------------------------------------------------
   // Format Result into Verbal Script (OmniVoice Multilingual Human-like)
   // -------------------------------------------------------------
   formatReportScript(result, lang = 'en') {

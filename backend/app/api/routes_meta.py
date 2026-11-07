@@ -1,5 +1,6 @@
+import io
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -113,6 +114,102 @@ async def translate_content(payload: TranslateRequest):
         source_lang=result["source_lang"],
         engine=result.get("engine", "hybrid")
     )
+
+@router.post("/translate/extract-doc", summary="Extract readable text from PDF, DOCX, TXT, or MD documents")
+async def extract_document_text(file: UploadFile = File(...)):
+    """Extracts text content from uploaded document files (PDF, DOCX, TXT, MD, CSV, JSON)."""
+    filename = file.filename or "document"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    
+    allowed = ["pdf", "docx", "txt", "md", "csv", "json"]
+    if ext not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file format '.{ext}'. Supported formats: {', '.join('.' + a for a in allowed)}"
+        )
+    
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="The uploaded document is empty.")
+    
+    # 15MB limit
+    if len(contents) > 15 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Document exceeds 15MB file size limit.")
+        
+    extracted_text = ""
+    pages_count = 1
+    
+    try:
+        if ext == "pdf":
+            try:
+                import pypdf
+            except ImportError:
+                raise HTTPException(status_code=500, detail="PDF engine (pypdf) is not installed on server.")
+                
+            pdf_stream = io.BytesIO(contents)
+            reader = pypdf.PdfReader(pdf_stream)
+            if reader.is_encrypted:
+                try:
+                    reader.decrypt("")
+                except Exception:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="This PDF is password-protected. Please remove password encryption and retry."
+                    )
+            
+            pages_count = len(reader.pages)
+            pages_text = []
+            for page in reader.pages:
+                txt = page.extract_text() or ""
+                if txt.strip():
+                    pages_text.append(txt.strip())
+            
+            extracted_text = "\n\n".join(pages_text)
+            if not extracted_text.strip():
+                raise HTTPException(
+                    status_code=400,
+                    detail="No selectable text found in this PDF. It appears to be an image-only scanned document."
+                )
+                
+        elif ext == "docx":
+            try:
+                import docx
+            except ImportError:
+                raise HTTPException(status_code=500, detail="Word engine (python-docx) is not installed on server.")
+                
+            docx_stream = io.BytesIO(contents)
+            doc = docx.Document(docx_stream)
+            paragraphs = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+            for table in doc.tables:
+                for row in table.rows:
+                    row_text = " | ".join([cell.text.strip() for cell in row.cells if cell.text.strip()])
+                    if row_text:
+                        paragraphs.append(row_text)
+            
+            extracted_text = "\n\n".join(paragraphs)
+            if not extracted_text.strip():
+                raise HTTPException(status_code=400, detail="No readable text found in this Word (.docx) document.")
+                
+        elif ext in ["txt", "md", "csv", "json"]:
+            try:
+                extracted_text = contents.decode("utf-8")
+            except UnicodeDecodeError:
+                extracted_text = contents.decode("latin-1", errors="replace")
+                
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process document: {str(e)}")
+        
+    return {
+        "status": "success",
+        "filename": filename,
+        "file_type": ext,
+        "pages": pages_count,
+        "char_count": len(extracted_text),
+        "word_count": len(extracted_text.split()),
+        "extracted_text": extracted_text
+    }
 
 @router.post("/feedback", response_model=FeedbackResponse, summary="Submit assessment feedback")
 async def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):
