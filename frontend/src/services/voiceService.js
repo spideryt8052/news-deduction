@@ -174,6 +174,7 @@ class VoiceService {
     this.keepAliveTimer = null;
     this.chunks = [];
     this.chunkIndex = 0;
+    this._gender = 'female';
 
     // Strict monotonic generation token to invalidate stale callbacks & promises
     this._sessionToken = 0;
@@ -187,6 +188,28 @@ class VoiceService {
         this._sharedAudio = null;
       }
     }
+  }
+
+  getGender() {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const stored = localStorage.getItem('truthshield_voice_gender');
+        if (stored === 'male' || stored === 'female') return stored;
+      } catch (e) {}
+    }
+    return this._gender || 'female';
+  }
+
+  setGender(gender) {
+    const clean = (gender === 'male' ? 'male' : 'female');
+    this._gender = clean;
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('truthshield_voice_gender', clean);
+        window.dispatchEvent(new CustomEvent('truthshield-voice-gender-changed', { detail: clean }));
+      } catch (e) {}
+    }
+    return clean;
   }
 
   // -------------------------------------------------------------
@@ -249,7 +272,7 @@ class VoiceService {
   // -------------------------------------------------------------
   // Direct Server Audio Stream (OmniVoice Hybrid Fallback)
   // -------------------------------------------------------------
-  playAudioStream(text, lang = 'en', { onStart, onEnd, onError } = {}) {
+  playAudioStream(text, lang = 'en', { gender, onStart, onEnd, onError } = {}) {
     const session = this._stopAllAudio();
     if (!text || !text.trim()) return;
 
@@ -269,9 +292,10 @@ class VoiceService {
 
     try {
       this.isSpeaking = true;
+      const targetGender = gender || this.getGender();
       const base = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '') || (import.meta.env.VITE_API_URL || '');
       const cleanBase = base ? base.replace(/\/$/, '') : '';
-      const audioUrl = `${cleanBase}/api/omnivoice/audio?text=${encodeURIComponent(cleanText)}&lang=${encodeURIComponent(langKey)}`;
+      const audioUrl = `${cleanBase}/api/omnivoice/audio?text=${encodeURIComponent(cleanText)}&lang=${encodeURIComponent(langKey)}&gender=${encodeURIComponent(targetGender)}`;
       const audio = this._sharedAudio;
 
       audio.onplay = () => {
@@ -561,8 +585,9 @@ class VoiceService {
     onStart, 
     onEnd, 
     onError, 
-    rate = 1.0, 
-    pitch = 1.0, 
+    rate = 0.98, 
+    pitch = null, 
+    gender = null,
     lang = 'en-US',
     cleanForHuman = true,
     maxSentences = null,
@@ -572,6 +597,14 @@ class VoiceService {
     const session = this._stopAllAudio();
 
     if (!text || !text.trim()) return;
+
+    const targetGender = (gender || this.getGender() || 'female').toLowerCase();
+
+    // Natural pitch calibration: female needs higher formant, male needs deeper chest tone
+    const calibratedPitch = pitch !== null 
+      ? pitch 
+      : (targetGender === 'female' ? 1.20 : 0.90);
+    const calibratedRate = rate || 0.98;
 
     // Convert raw text into natural, clean human speech
     const speechText = cleanForHuman 
@@ -586,43 +619,84 @@ class VoiceService {
       ? (window.speechSynthesis.getVoices() || []) 
       : [];
 
+    const FEMALE_VOICE_NAMES = [
+      'swara', 'heera', 'kalpana', 'neerja', 'jenny', 'zira', 'tanishaa', 'uzma', 
+      'aarohi', 'pallavi', 'shruti', 'dhwani', 'sapna', 'sobhana', 'ojas', 'lekha', 
+      'sangeeta', 'veena', 'female', 'woman', 'girl', 'eva', 'denise', 'elvira', 
+      'samantha', 'victoria', 'karen', 'moira', 'tessa', 'fiona', 'alva', 'alice', 
+      'clara', 'amelie', 'anna', 'helena', 'zariyah', 'xiaoxiao', 'nanami', 'sunhi'
+    ];
+
+    const MALE_VOICE_NAMES = [
+      'madhur', 'hemant', 'prabhat', 'guy', 'david', 'mark', 'ravi', 'bashkar', 
+      'asad', 'manohar', 'valluvar', 'mohan', 'niranjan', 'gagan', 'midhun', 'raag', 
+      'rishi', 'male', 'man', 'boy', 'george', 'henri', 'alvaro', 'conrad', 'dmitry', 
+      'daniel', 'tom', 'alex', 'oliver', 'thomas', 'hamed', 'yunjian', 'keita', 'injoon'
+    ];
+
+    const matchGender = (v) => {
+      const nameLower = v.name.toLowerCase();
+      if (targetGender === 'female') {
+        // Must contain a female indicator OR strictly NOT be a known male voice
+        return FEMALE_VOICE_NAMES.some(n => nameLower.includes(n)) || 
+               !MALE_VOICE_NAMES.some(n => nameLower.includes(n));
+      } else {
+        return MALE_VOICE_NAMES.some(n => nameLower.includes(n));
+      }
+    };
+
+    const isHighQuality = (v) => {
+      const n = v.name.toLowerCase();
+      return n.includes('natural') || n.includes('neural') || n.includes('google') || n.includes('online');
+    };
+
     let preferredVoice = null;
     if (voices.length > 0) {
-      // 1. Exact match with neural/natural/Google quality
+      // 1. Exact match with target gender + neural/natural
       preferredVoice = voices.find(v => {
         const vLang = v.lang.toLowerCase().replace('_', '-');
-        return (vLang === langCode) &&
-          (v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Google') || v.name.includes('Online'));
+        return (vLang === langCode) && matchGender(v) && isHighQuality(v);
       });
 
-      // 2. Exact match
+      // 2. Exact match with target gender
       if (!preferredVoice) {
-        preferredVoice = voices.find(v => v.lang.toLowerCase().replace('_', '-') === langCode);
+        preferredVoice = voices.find(v => {
+          const vLang = v.lang.toLowerCase().replace('_', '-');
+          return (vLang === langCode) && matchGender(v);
+        });
       }
 
-      // 3. Prefix match with neural/natural
+      // 3. Prefix match with target gender + neural/natural
       if (!preferredVoice) {
-        preferredVoice = voices.find(v => 
-          v.lang.toLowerCase().replace('_', '-').startsWith(langPrefix) &&
-          (v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Google') || v.name.includes('Online'))
-        );
+        preferredVoice = voices.find(v => {
+          const vLang = v.lang.toLowerCase().replace('_', '-');
+          return vLang.startsWith(langPrefix) && matchGender(v) && isHighQuality(v);
+        });
       }
 
-      // 4. Any prefix match
+      // 4. Any prefix match with target gender
       if (!preferredVoice) {
-        preferredVoice = voices.find(v => v.lang.toLowerCase().replace('_', '-').startsWith(langPrefix));
+        preferredVoice = voices.find(v => {
+          const vLang = v.lang.toLowerCase().replace('_', '-');
+          return vLang.startsWith(langPrefix) && matchGender(v);
+        });
       }
 
       // 5. Dialect fallback (e.g. Bhojpuri or Maithili can use Hindi voice in browser)
       if (!preferredVoice && (langPrefix === 'bho' || langPrefix === 'mai')) {
-        preferredVoice = voices.find(v => v.lang.toLowerCase().replace('_', '-').startsWith('hi'));
+        preferredVoice = voices.find(v => v.lang.toLowerCase().replace('_', '-').startsWith('hi') && matchGender(v));
+      }
+
+      // 6. Any voice if matching gender voice not found
+      if (!preferredVoice) {
+        preferredVoice = voices.find(v => v.lang.toLowerCase().replace('_', '-').startsWith(langPrefix));
       }
     }
 
     // IF browser has NO matching voice installed for this language, stream directly from OmniVoice!
     // (Crucial for Urdu, Punjabi, Marathi, Tamil, Telugu, Kannada, Gujarati, Arabic, Russian, etc. on Windows)
     if (!preferredVoice || !this.isSpeechSynthesisSupported()) {
-      return this.playAudioStream(speechText, lang, { onStart, onEnd, onError });
+      return this.playAudioStream(speechText, lang, { gender: targetGender, onStart, onEnd, onError });
     }
 
     // Otherwise, break into chunks and use browser SpeechSynthesis with instant fallback
@@ -670,8 +744,8 @@ class VoiceService {
         const chunkText = this.chunks[this.chunkIndex];
         const utterance = new SpeechSynthesisUtterance(chunkText);
         this.currentUtterance = utterance;
-        utterance.rate = rate;
-        utterance.pitch = pitch;
+        utterance.rate = calibratedRate;
+        utterance.pitch = calibratedPitch;
         utterance.lang = lang;
         if (preferredVoice) {
           utterance.voice = preferredVoice;
@@ -701,7 +775,7 @@ class VoiceService {
           console.warn('Speech chunk warning:', e);
           // If browser TTS failed for any reason, smoothly fallback to server audio stream
           this.stopSpeaking();
-          this.playAudioStream(speechText, lang, { onStart, onEnd, onError });
+          this.playAudioStream(speechText, lang, { gender: targetGender, onStart, onEnd, onError });
         };
 
         window.speechSynthesis.speak(utterance);
@@ -711,7 +785,7 @@ class VoiceService {
     } catch (err) {
       if (this._sessionToken !== session) return;
       console.warn('Browser SpeechSynthesis threw exception, falling back to audio stream:', err);
-      this.playAudioStream(speechText, lang, { onStart, onEnd, onError });
+      this.playAudioStream(speechText, lang, { gender: targetGender, onStart, onEnd, onError });
     }
   }
 
@@ -740,16 +814,17 @@ class VoiceService {
   // -------------------------------------------------------------
   // Download Audio MP3 (Save to Device)
   // -------------------------------------------------------------
-  downloadAudio(text, lang = 'hi', customFilename = null) {
+  downloadAudio(text, lang = 'hi', customFilename = null, gender = null) {
     if (!text || !text.trim()) return;
     const langKey = (lang || 'hi').split('-')[0].toLowerCase();
     const cleanText = toHumanSpeechText(text, { conversational: false, lang: langKey });
     if (!cleanText) return;
 
+    const targetGender = gender || this.getGender() || 'female';
     const base = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '') || (import.meta.env.VITE_API_URL || '');
     const cleanBase = base ? base.replace(/\/$/, '') : '';
-    const safeName = customFilename || `truthshield-${langKey}-speech.mp3`;
-    const audioUrl = `${cleanBase}/api/omnivoice/audio?text=${encodeURIComponent(cleanText)}&lang=${encodeURIComponent(langKey)}&download=true&filename=${encodeURIComponent(safeName)}`;
+    const safeName = customFilename || `truthshield-${langKey}-${targetGender}.mp3`;
+    const audioUrl = `${cleanBase}/api/omnivoice/audio?text=${encodeURIComponent(cleanText)}&lang=${encodeURIComponent(langKey)}&gender=${encodeURIComponent(targetGender)}&download=true&filename=${encodeURIComponent(safeName)}`;
 
     const a = document.createElement('a');
     a.href = audioUrl;

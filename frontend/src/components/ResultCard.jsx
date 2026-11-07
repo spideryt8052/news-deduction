@@ -40,14 +40,20 @@ export default function ResultCard({ result, onReset }) {
   const [feedbackSent, setFeedbackSent] = useState(null); // 'helpful' | 'unhelpful'
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceLang, setVoiceLang] = useState(result?.selected_language || 'hi-IN');
+  const [voiceGender, setVoiceGender] = useState(() => voiceService.getGender());
   const [translatedData, setTranslatedData] = useState(null);
   const [isTranslating, setIsTranslating] = useState(false);
 
   useEffect(() => {
     // Stop speech when component unmounts or result changes
     setTranslatedData(null);
+    const handleGenderChange = (e) => {
+      if (e.detail) setVoiceGender(e.detail);
+    };
+    window.addEventListener('truthshield-voice-gender-changed', handleGenderChange);
     return () => {
       voiceService.stopSpeaking();
+      window.removeEventListener('truthshield-voice-gender-changed', handleGenderChange);
     };
   }, [result]);
 
@@ -99,6 +105,7 @@ Recommendation: ${displayRecommendation}`;
       const speechScript = voiceService.formatReportScript(activeObj, voiceLang);
       voiceService.speak(speechScript, {
         lang: voiceLang,
+        gender: voiceGender,
         readFull: true,
         onStart: () => setIsSpeaking(true),
         onEnd: () => setIsSpeaking(false),
@@ -117,7 +124,7 @@ Recommendation: ${displayRecommendation}`;
     };
     const speechScript = voiceService.formatReportScript(activeObj, voiceLang);
     const langKey = (voiceLang || 'hi').split('-')[0].toLowerCase();
-    voiceService.downloadAudio(speechScript, voiceLang, `truthshield-report-${langKey}.mp3`);
+    voiceService.downloadAudio(speechScript, voiceLang, `truthshield-report-${langKey}-${voiceGender}.mp3`, voiceGender);
   };
 
   const handleTranslateReport = async (targetLangCode) => {
@@ -259,6 +266,50 @@ Recommendation: ${displayRecommendation}`;
                   <Languages className="w-3 h-3 text-cyan-400" />
                 )}
                 <span>{isTranslating ? 'Translating...' : 'Translate'}</span>
+              </button>
+            </div>
+
+            {/* Voice Gender Switcher (Female / Male) */}
+            <div className="flex items-center bg-slate-900/90 border border-slate-700/80 rounded-xl p-0.5" title="Voice Gender (आवाज़: महिला / पुरुष)">
+              <button
+                type="button"
+                onClick={() => {
+                  setVoiceGender('female');
+                  voiceService.setGender('female');
+                  if (isSpeaking) {
+                    voiceService.stopSpeaking();
+                    setIsSpeaking(false);
+                  }
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+                  voiceGender === 'female'
+                    ? 'bg-gradient-to-r from-pink-500/25 to-purple-500/25 text-pink-300 border border-pink-500/40 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Female Voice (महिला आवाज़ - Swara Neural)"
+              >
+                <span>👩</span>
+                <span className="hidden sm:inline">Female</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setVoiceGender('male');
+                  voiceService.setGender('male');
+                  if (isSpeaking) {
+                    voiceService.stopSpeaking();
+                    setIsSpeaking(false);
+                  }
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+                  voiceGender === 'male'
+                    ? 'bg-gradient-to-r from-cyan-500/25 to-blue-500/25 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Male Voice (पुरुष आवाज़ - Madhur Neural)"
+              >
+                <span>👨</span>
+                <span className="hidden sm:inline">Male</span>
               </button>
             </div>
 

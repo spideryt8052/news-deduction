@@ -64,17 +64,23 @@ async def generate_report_audio(payload: OmniVoiceReportRequest):
     )
 
 @router.get("/audio", summary="Stream or download synthesized speech audio MP3")
-async def stream_speech_audio(text: str, lang: str = "hi", download: bool = False, filename: Optional[str] = None):
-    """Streams synthesized speech audio MP3 directly for any human language, with download support."""
+async def stream_speech_audio(
+    text: str, 
+    lang: str = "hi", 
+    gender: str = "female", 
+    download: bool = False, 
+    filename: Optional[str] = None
+):
+    """Streams synthesized speech audio MP3 directly for any human language and gender, with download support."""
     from fastapi.responses import Response
     if not text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty.")
     
-    audio_bytes = await OmniVoiceService.get_audio_bytes(text=text, lang_id=lang)
+    audio_bytes = await OmniVoiceService.get_audio_bytes(text=text, lang_id=lang, gender=gender)
     if not audio_bytes:
         raise HTTPException(status_code=500, detail="Failed to synthesize speech audio.")
     
-    safe_name = filename or f"truthshield-{lang}-audio.mp3"
+    safe_name = filename or f"truthshield-{lang}-{gender}-audio.mp3"
     disposition = f'attachment; filename="{safe_name}"' if download else 'inline; filename="speech.mp3"'
     
     return Response(
@@ -94,11 +100,12 @@ async def generate_speech_audio_post(payload: OmniVoiceSynthesizeRequest, downlo
     if not payload.text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty.")
     
-    audio_bytes = await OmniVoiceService.get_audio_bytes(text=payload.text, lang_id=payload.lang_id)
+    gender = payload.voice_gender or "female"
+    audio_bytes = await OmniVoiceService.get_audio_bytes(text=payload.text, lang_id=payload.lang_id, gender=gender)
     if not audio_bytes:
         raise HTTPException(status_code=500, detail="Failed to synthesize speech audio.")
     
-    disposition = f'attachment; filename="truthshield-{payload.lang_id}-audio.mp3"' if download else 'inline; filename="speech.mp3"'
+    disposition = f'attachment; filename="truthshield-{payload.lang_id}-{gender}-audio.mp3"' if download else 'inline; filename="speech.mp3"'
     
     return Response(
         content=audio_bytes,

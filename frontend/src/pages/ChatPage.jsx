@@ -92,6 +92,7 @@ export default function ChatPage() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceMuted, setVoiceMuted] = useState(false);
   const [voiceLang, setVoiceLang] = useState('en-US');
+  const [voiceGender, setVoiceGender] = useState(() => voiceService.getGender());
   const [copiedIdx, setCopiedIdx] = useState(null);
   const [activeSpeakingIdx, setActiveSpeakingIdx] = useState(null);
 
@@ -111,6 +112,17 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
+
+  // Sync voice gender across components
+  useEffect(() => {
+    const handleGenderChange = (e) => {
+      if (e.detail) setVoiceGender(e.detail);
+    };
+    window.addEventListener('truthshield-voice-gender-changed', handleGenderChange);
+    return () => {
+      window.removeEventListener('truthshield-voice-gender-changed', handleGenderChange);
+    };
+  }, []);
 
   // Clean up voice on unmount
   useEffect(() => {
@@ -321,6 +333,7 @@ export default function ChatPage() {
         setActiveSpeakingIdx(updatedHistory.length);
         voiceService.speak(res.response, {
           lang: voiceLang,
+          gender: voiceGender,
           readFull: true,
           onEnd: () => {
             setIsSpeaking(false);
@@ -351,6 +364,7 @@ export default function ChatPage() {
       setIsSpeaking(true);
       voiceService.speak(speechScript, {
         lang: voiceLang,
+        gender: voiceGender,
         readFull: true,
         onEnd: () => setIsSpeaking(false),
         onError: () => setIsSpeaking(false)
@@ -401,6 +415,7 @@ export default function ChatPage() {
 
       voiceService.speak(textToSpeak, {
         lang: voiceLang,
+        gender: voiceGender,
         readFull: true,
         onEnd: () => {
           setIsSpeaking(false);
@@ -421,7 +436,7 @@ export default function ChatPage() {
       ? voiceService.formatReportScript(analysisResult, voiceLang) 
       : text;
     const langKey = (voiceLang || 'en').split('-')[0].toLowerCase();
-    voiceService.downloadAudio(textToSpeak, voiceLang, `truthshield-response-${langKey}.mp3`);
+    voiceService.downloadAudio(textToSpeak, voiceLang, `truthshield-response-${langKey}-${voiceGender}.mp3`, voiceGender);
   };
 
   const [translatingMsgIdx, setTranslatingMsgIdx] = useState(null);
@@ -575,6 +590,52 @@ export default function ChatPage() {
               </option>
             ))}
           </select>
+
+          {/* Voice Gender Switcher (Female / Male) */}
+          <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl p-0.5" title="Voice Gender (आवाज़)">
+            <button
+              type="button"
+              onClick={() => {
+                setVoiceGender('female');
+                voiceService.setGender('female');
+                if (isSpeaking) {
+                  voiceService.stopSpeaking();
+                  setIsSpeaking(false);
+                  setActiveSpeakingIdx(null);
+                }
+              }}
+              className={`px-2 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+                voiceGender === 'female'
+                  ? 'bg-pink-500/25 text-pink-300 border border-pink-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Female Voice (महिला आवाज़)"
+            >
+              <span>👩</span>
+              <span className="hidden sm:inline">Female</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setVoiceGender('male');
+                voiceService.setGender('male');
+                if (isSpeaking) {
+                  voiceService.stopSpeaking();
+                  setIsSpeaking(false);
+                  setActiveSpeakingIdx(null);
+                }
+              }}
+              className={`px-2 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+                voiceGender === 'male'
+                  ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Male Voice (पुरुष आवाज़)"
+            >
+              <span>👨</span>
+              <span className="hidden sm:inline">Male</span>
+            </button>
+          </div>
 
           {/* Mute/Unmute audio read-aloud */}
           <button

@@ -381,20 +381,96 @@ class OmniVoiceService:
     _audio_cache: Dict[str, bytes] = {}
 
     @classmethod
-    async def get_audio_bytes(cls, text: str, lang_id: str = "en") -> bytes:
-        """Fetches high-quality natural voice audio (MP3) for any language with chunking & caching."""
+    async def get_audio_bytes(cls, text: str, lang_id: str = "en", gender: str = "female") -> bytes:
+        """Fetches studio-grade natural voice audio (MP3) for male or female voices using Edge Neural TTS with zero-failure fallbacks."""
         clean_text = cls.clean_text_for_speech(text.strip())
         if not clean_text:
             return b""
         
-        # Limit total text length
-        if len(clean_text) > 400:
-            clean_text = clean_text[:400] + "..."
+        # Limit total text length for single audio stream
+        if len(clean_text) > 500:
+            clean_text = clean_text[:500] + "..."
 
-        cache_key = f"{lang_id}:{clean_text}"
+        gender_clean = "male" if str(gender).strip().lower() in ["male", "man", "boy", "m", "पुरुष"] else "female"
+        cache_key = f"{lang_id}:{gender_clean}:{clean_text}"
         if cache_key in cls._audio_cache:
             return cls._audio_cache[cache_key]
 
+        # 1. High-fidelity Microsoft Neural TTS Voice Map (Female & Male)
+        EDGE_VOICE_MAP = {
+            "female": {
+                "hi": "hi-IN-SwaraNeural",
+                "en": "en-IN-NeerjaNeural",
+                "ur": "ur-PK-UzmaNeural",
+                "bn": "bn-IN-TanishaaNeural",
+                "ta": "ta-IN-PallaviNeural",
+                "te": "te-IN-ShrutiNeural",
+                "mr": "mr-IN-AarohiNeural",
+                "gu": "gu-IN-DhwaniNeural",
+                "kn": "kn-IN-SapnaNeural",
+                "ml": "ml-IN-SobhanaNeural",
+                "pa": "pa-IN-OjasNeural",
+                "as": "bn-IN-TanishaaNeural",
+                "bho": "hi-IN-SwaraNeural",
+                "mai": "hi-IN-SwaraNeural",
+                "ar": "ar-SA-ZariyahNeural",
+                "es": "es-ES-ElviraNeural",
+                "fr": "fr-FR-DeniseNeural",
+                "de": "de-DE-KatjaNeural",
+                "ru": "ru-RU-SvetlanaNeural",
+                "zh": "zh-CN-XiaoxiaoNeural",
+                "ja": "ja-JP-NanamiNeural",
+                "ko": "ko-KR-SunHiNeural"
+            },
+            "male": {
+                "hi": "hi-IN-MadhurNeural",
+                "en": "en-IN-PrabhatNeural",
+                "ur": "ur-PK-AsadNeural",
+                "bn": "bn-IN-BashkarNeural",
+                "ta": "ta-IN-ValluvarNeural",
+                "te": "te-IN-MohanNeural",
+                "mr": "mr-IN-ManoharNeural",
+                "gu": "gu-IN-NiranjanNeural",
+                "kn": "kn-IN-GaganNeural",
+                "ml": "ml-IN-MidhunNeural",
+                "pa": "pa-IN-RaagNeural",
+                "as": "bn-IN-BashkarNeural",
+                "bho": "hi-IN-MadhurNeural",
+                "mai": "hi-IN-MadhurNeural",
+                "ar": "ar-SA-HamedNeural",
+                "es": "es-ES-AlvaroNeural",
+                "fr": "fr-FR-HenriNeural",
+                "de": "de-DE-ConradNeural",
+                "ru": "ru-RU-DmitryNeural",
+                "zh": "zh-CN-YunjianNeural",
+                "ja": "ja-JP-KeitaNeural",
+                "ko": "ko-KR-InJoonNeural"
+            }
+        }
+
+        # Try Edge-TTS first (provides the most realistic human male/female tone and accurate pronunciation)
+        try:
+            import edge_tts
+            voice_name = EDGE_VOICE_MAP.get(gender_clean, EDGE_VOICE_MAP["female"]).get(
+                lang_id, 
+                "hi-IN-SwaraNeural" if gender_clean == "female" else "hi-IN-MadhurNeural"
+            )
+            communicate = edge_tts.Communicate(clean_text, voice_name)
+            edge_bytes = bytearray()
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    edge_bytes.extend(chunk["data"])
+            
+            if len(edge_bytes) > 0:
+                result_bytes = bytes(edge_bytes)
+                if len(cls._audio_cache) > 200:
+                    cls._audio_cache.clear()
+                cls._audio_cache[cache_key] = result_bytes
+                return result_bytes
+        except Exception as edge_err:
+            logger.warning(f"EdgeTTS generation fallback: {edge_err}")
+
+        # 2. Universal fallback: Google TTS with chunking
         tts_lang_map = {
             "hi": "hi", "en": "en", "ur": "ur", "bn": "bn", "ta": "ta",
             "te": "te", "mr": "mr", "pa": "pa", "gu": "gu", "kn": "kn",
@@ -409,7 +485,6 @@ class OmniVoiceService:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
 
-        # Break into chunks of under 150 chars to avoid TTS limits
         words = clean_text.split(" ")
         chunks = []
         cur = []

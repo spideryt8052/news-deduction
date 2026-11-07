@@ -161,6 +161,7 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
   const [voiceMuted, setVoiceMuted] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [selectedLang, setSelectedLang] = useState('en-US'); // 'en-US' | 'en-IN' | 'hi-IN'
+  const [voiceGender, setVoiceGender] = useState(() => voiceService.getGender());
   const [messages, setMessages] = useState([
     {
       sender: 'assistant',
@@ -181,6 +182,17 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
+
+  // Sync voice gender across components
+  useEffect(() => {
+    const handleGenderChange = (e) => {
+      if (e.detail) setVoiceGender(e.detail);
+    };
+    window.addEventListener('truthshield-voice-gender-changed', handleGenderChange);
+    return () => {
+      window.removeEventListener('truthshield-voice-gender-changed', handleGenderChange);
+    };
+  }, []);
 
   // Clean up speech when widget unmounts
   useEffect(() => {
@@ -351,6 +363,7 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
   const speakResponse = (text) => {
     voiceService.speak(text, {
       lang: selectedLang,
+      gender: voiceGender,
       readFull: true,
       maxSentences: null,
       conversational: false,
@@ -390,6 +403,7 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
       langDebounceTimerRef.current = setTimeout(() => {
         voiceService.speak(newGreeting, {
           lang: newLang,
+          gender: voiceGender,
           readFull: true,
           onStart: () => setIsSpeaking(true),
           onEnd: () => setIsSpeaking(false),
@@ -522,7 +536,7 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => voiceService.downloadAudio(m.text, selectedLang)}
+                          onClick={() => voiceService.downloadAudio(m.text, selectedLang, null, voiceGender)}
                           className="p-1 rounded text-slate-400 hover:text-cyan-300 hover:bg-white/5 transition-colors"
                           title="Download Audio (MP3)"
                         >
@@ -595,19 +609,59 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
           {/* Speech Control Footer */}
           <div className="p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between gap-3">
             
-            {/* OmniVoice Language Selector */}
-            <select
-              value={selectedLang}
-              onChange={(e) => handleLanguageChange(e.target.value)}
-              className="bg-slate-950 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-[11px] text-slate-200 focus:outline-none focus:border-cyan-500 max-w-[150px] truncate"
-              title="Select OmniVoice Language"
-            >
-              {OMNIVOICE_LANGUAGES.map((l) => (
-                <option key={l.code} value={l.code}>
-                  {l.flag} {l.name}
-                </option>
-              ))}
-            </select>
+            {/* Language & Voice Gender Controls */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <select
+                value={selectedLang}
+                onChange={(e) => handleLanguageChange(e.target.value)}
+                className="bg-slate-950 border border-slate-700/80 rounded-xl px-2 py-1.5 text-[11px] text-slate-200 focus:outline-none focus:border-cyan-500 max-w-[130px] truncate cursor-pointer"
+                title="Select OmniVoice Language"
+              >
+                {OMNIVOICE_LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.flag} {l.name}
+                  </option>
+                ))}
+              </select>
+
+              {/* Female / Male Voice Switcher */}
+              <div className="flex items-center bg-slate-950 border border-slate-700/80 rounded-xl p-0.5" title="Voice Gender (आवाज़)">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVoiceGender('female');
+                    voiceService.setGender('female');
+                    if (isSpeaking) handleStopSpeaking();
+                  }}
+                  className={`px-2 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-0.5 transition-all cursor-pointer ${
+                    voiceGender === 'female'
+                      ? 'bg-pink-500/25 text-pink-300 border border-pink-500/40 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                  title="Female Voice (महिला आवाज़)"
+                >
+                  <span>👩</span>
+                  <span className="hidden sm:inline">Female</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVoiceGender('male');
+                    voiceService.setGender('male');
+                    if (isSpeaking) handleStopSpeaking();
+                  }}
+                  className={`px-2 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-0.5 transition-all cursor-pointer ${
+                    voiceGender === 'male'
+                      ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                  title="Male Voice (पुरुष आवाज़)"
+                >
+                  <span>👨</span>
+                  <span className="hidden sm:inline">Male</span>
+                </button>
+              </div>
+            </div>
 
             {/* Big Mic Control Button */}
             <div className="flex items-center gap-2">
