@@ -85,7 +85,9 @@ class AudioStudioService {
       this.audioCtx = new AudioCtx({ sampleRate: 44100 });
     }
     if (this.audioCtx.state === 'suspended') {
-      this.audioCtx.resume();
+      try {
+        this.audioCtx.resume().catch(() => {});
+      } catch (_) {}
     }
     return this.audioCtx;
   }

@@ -12,6 +12,7 @@
  */
 
 import { toHumanSpeechText } from './voiceService';
+import { API_BASE_URL } from './api';
 
 export function splitTextIntoWordChunks(rawText, targetWordCount = 450, lang = 'hi') {
   if (!rawText || !rawText.trim()) return [];
@@ -117,7 +118,7 @@ class SmartDocumentPlayer {
     const part = this.parts[index];
     if (!part) return null;
 
-    const base = (typeof window !== 'undefined' && import.meta.env?.VITE_API_URL) || '';
+    const base = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '') || (typeof window !== 'undefined' && import.meta.env?.VITE_API_URL) || '';
     const cleanBase = base ? base.replace(/\/$/, '') : '';
     const langKey = (this.lang || 'hi').split('-')[0].toLowerCase();
 
@@ -299,3 +300,4 @@ class SmartDocumentPlayer {
 
 export const smartDocumentPlayer = new SmartDocumentPlayer();
 export default smartDocumentPlayer;
+
