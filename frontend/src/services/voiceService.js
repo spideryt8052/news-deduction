@@ -270,9 +270,9 @@ class VoiceService {
   }
 
   // -------------------------------------------------------------
-  // Direct Server Audio Stream (OmniVoice Hybrid Fallback)
+  // Direct Server Audio Stream (OmniVoice Hybrid Fallback) - Unlimited Length via POST
   // -------------------------------------------------------------
-  playAudioStream(text, lang = 'en', { gender, onStart, onEnd, onError } = {}) {
+  async playAudioStream(text, lang = 'en', { gender, onStart, onEnd, onError } = {}) {
     const session = this._stopAllAudio();
     if (!text || !text.trim()) return;
 
@@ -295,7 +295,26 @@ class VoiceService {
       const targetGender = gender || this.getGender();
       const base = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '') || (import.meta.env.VITE_API_URL || '');
       const cleanBase = base ? base.replace(/\/$/, '') : '';
-      const audioUrl = `${cleanBase}/api/omnivoice/audio?text=${encodeURIComponent(cleanText)}&lang=${encodeURIComponent(langKey)}&gender=${encodeURIComponent(targetGender)}`;
+
+      // Send POST request so there is zero URL query length limit (supports full long PDFs)
+      const res = await fetch(`${cleanBase}/api/omnivoice/audio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: cleanText,
+          lang_id: langKey,
+          voice_gender: targetGender,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Audio synthesis failed with status ${res.status}`);
+      }
+
+      const audioBlob = await res.blob();
+      if (this._sessionToken !== session) return;
+
+      const blobUrl = URL.createObjectURL(audioBlob);
       const audio = this._sharedAudio;
 
       audio.onplay = () => {
@@ -307,6 +326,7 @@ class VoiceService {
       audio.onended = () => {
         if (this._sessionToken !== session) return;
         this.isSpeaking = false;
+        URL.revokeObjectURL(blobUrl);
         if (onEnd) onEnd();
       };
 
@@ -314,16 +334,16 @@ class VoiceService {
         if (this._sessionToken !== session) return;
         console.warn('OmniVoice audio playback error:', e);
         this.isSpeaking = false;
+        URL.revokeObjectURL(blobUrl);
         if (onError) onError('Speech audio playback error for selected language.');
       };
 
-      audio.src = audioUrl;
+      audio.src = blobUrl;
       audio.load();
 
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch((err) => {
-          // Ignore interruption or aborted play when session changed or was stopped
           if (this._sessionToken !== session) return;
           if (err && (err.name === 'AbortError' || err.message?.includes('interrupted'))) return;
           console.warn('Audio play promise rejected:', err);
@@ -814,9 +834,9 @@ class VoiceService {
   }
 
   // -------------------------------------------------------------
-  // Download Audio MP3 (Save to Device)
+  // Download Audio MP3 (Save to Device) - Unlimited length via POST
   // -------------------------------------------------------------
-  downloadAudio(text, lang = 'hi', customFilename = null, gender = null) {
+  async downloadAudio(text, lang = 'hi', customFilename = null, gender = null) {
     if (!text || !text.trim()) return;
     const langKey = (lang || 'hi').split('-')[0].toLowerCase();
     const cleanText = toHumanSpeechText(text, { conversational: false, lang: langKey });
@@ -826,22 +846,53 @@ class VoiceService {
     const base = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '') || (import.meta.env.VITE_API_URL || '');
     const cleanBase = base ? base.replace(/\/$/, '') : '';
     const safeName = customFilename || `truthshield-${langKey}-${targetGender}.mp3`;
-    const audioUrl = `${cleanBase}/api/omnivoice/audio?text=${encodeURIComponent(cleanText)}&lang=${encodeURIComponent(langKey)}&gender=${encodeURIComponent(targetGender)}&download=true&filename=${encodeURIComponent(safeName)}`;
 
-    const a = document.createElement('a');
-    a.href = audioUrl;
-    a.download = safeName;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      if (document.body.contains(a)) {
-        document.body.removeChild(a);
+    try {
+      // Use POST request with JSON body so documents of UNLIMITED length download completely
+      const res = await fetch(`${cleanBase}/api/omnivoice/audio?download=true`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: cleanText,
+          lang_id: langKey,
+          voice_gender: targetGender,
+        }),
+      });
+
+      if (!res.ok) throw new Error(`Download failed with status ${res.status}`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = safeName;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (document.body.contains(a)) {
+          document.body.removeChild(a);
+        }
+        URL.revokeObjectURL(blobUrl);
+      }, 1000);
+    } catch (err) {
+      console.error('Download audio error:', err);
+      // Fallback for short texts
+      if (cleanText.length < 800) {
+        const audioUrl = `${cleanBase}/api/omnivoice/audio?text=${encodeURIComponent(cleanText)}&lang=${encodeURIComponent(langKey)}&gender=${encodeURIComponent(targetGender)}&download=true&filename=${encodeURIComponent(safeName)}`;
+        const a = document.createElement('a');
+        a.href = audioUrl;
+        a.download = safeName;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          if (document.body.contains(a)) document.body.removeChild(a);
+        }, 300);
       }
-    }, 200);
+    }
   }
 
   // -------------------------------------------------------------
-  // Fetch Audio ArrayBuffer for Audio Studio Mixing & Beat Blending
+  // Fetch Audio ArrayBuffer for Audio Studio Mixing & Beat Blending - Unlimited length via POST
   // -------------------------------------------------------------
   async getAudioArrayBuffer(text, lang = 'hi', gender = null) {
     if (!text || !text.trim()) return null;
@@ -852,9 +903,18 @@ class VoiceService {
     const targetGender = gender || this.getGender() || 'female';
     const base = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '') || (import.meta.env.VITE_API_URL || '');
     const cleanBase = base ? base.replace(/\/$/, '') : '';
-    const audioUrl = `${cleanBase}/api/omnivoice/audio?text=${encodeURIComponent(cleanText)}&lang=${encodeURIComponent(langKey)}&gender=${encodeURIComponent(targetGender)}`;
 
-    const res = await fetch(audioUrl);
+    // POST request with JSON body supports unlimited full-document text
+    const res = await fetch(`${cleanBase}/api/omnivoice/audio`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: cleanText,
+        lang_id: langKey,
+        voice_gender: targetGender,
+      }),
+    });
+
     if (!res.ok) throw new Error('Speech synthesis audio stream failed.');
     return await res.arrayBuffer();
   }

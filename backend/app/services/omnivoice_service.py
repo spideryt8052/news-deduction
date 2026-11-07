@@ -382,19 +382,45 @@ class OmniVoiceService:
 
     @classmethod
     async def get_audio_bytes(cls, text: str, lang_id: str = "en", gender: str = "female") -> bytes:
-        """Fetches studio-grade natural voice audio (MP3) for male or female voices using Edge Neural TTS with zero-failure fallbacks."""
+        """Fetches studio-grade natural voice audio (MP3) for male or female voices using Edge Neural TTS with unlimited document length support."""
         clean_text = cls.clean_text_for_speech(text.strip())
         if not clean_text:
             return b""
-        
-        # Limit total text length for single audio stream
-        if len(clean_text) > 500:
-            clean_text = clean_text[:500] + "..."
 
         gender_clean = "male" if str(gender).strip().lower() in ["male", "man", "boy", "m", "पुरुष"] else "female"
-        cache_key = f"{lang_id}:{gender_clean}:{clean_text}"
+        
+        # Use md5 hash for cache key to handle large documents without memory exhaustion
+        import hashlib
+        text_hash = hashlib.md5(clean_text.encode("utf-8")).hexdigest()
+        cache_key = f"{lang_id}:{gender_clean}:{text_hash}"
         if cache_key in cls._audio_cache:
             return cls._audio_cache[cache_key]
+
+        # Sentence-level chunking: For large documents/PDFs, split into natural chunks of ~1500 chars
+        sentences = re.split(r'([।\.\?\!\n]+)', clean_text)
+        text_chunks = []
+        current_chunk = []
+        current_len = 0
+
+        for i in range(0, len(sentences), 2):
+            s = sentences[i].strip()
+            p = sentences[i+1] if i+1 < len(sentences) else ''
+            if not s:
+                continue
+            sentence_full = s + p
+            if current_len + len(sentence_full) > 1500 and current_chunk:
+                text_chunks.append(' '.join(current_chunk))
+                current_chunk = [sentence_full]
+                current_len = len(sentence_full)
+            else:
+                current_chunk.append(sentence_full)
+                current_len += len(sentence_full) + 1
+
+        if current_chunk:
+            text_chunks.append(' '.join(current_chunk))
+
+        if not text_chunks:
+            text_chunks = [clean_text]
 
         # 1. High-fidelity Microsoft Neural TTS Voice Map (Female & Male)
         EDGE_VOICE_MAP = {
@@ -448,22 +474,26 @@ class OmniVoiceService:
             }
         }
 
-        # Try Edge-TTS first (provides the most realistic human male/female tone and accurate pronunciation)
+        # Try Edge-TTS across all chunks and concatenate continuous audio stream
         try:
             import edge_tts
             voice_name = EDGE_VOICE_MAP.get(gender_clean, EDGE_VOICE_MAP["female"]).get(
                 lang_id, 
                 "hi-IN-SwaraNeural" if gender_clean == "female" else "hi-IN-MadhurNeural"
             )
-            communicate = edge_tts.Communicate(clean_text, voice_name)
-            edge_bytes = bytearray()
-            async for chunk in communicate.stream():
-                if chunk["type"] == "audio":
-                    edge_bytes.extend(chunk["data"])
-            
-            if len(edge_bytes) > 0:
-                result_bytes = bytes(edge_bytes)
-                if len(cls._audio_cache) > 200:
+            all_edge_bytes = bytearray()
+            for chunk_item in text_chunks:
+                chunk_str = chunk_item.strip()
+                if not chunk_str:
+                    continue
+                communicate = edge_tts.Communicate(chunk_str, voice_name)
+                async for chunk in communicate.stream():
+                    if chunk["type"] == "audio":
+                        all_edge_bytes.extend(chunk["data"])
+
+            if len(all_edge_bytes) > 0:
+                result_bytes = bytes(all_edge_bytes)
+                if len(cls._audio_cache) > 100:
                     cls._audio_cache.clear()
                 cls._audio_cache[cache_key] = result_bytes
                 return result_bytes

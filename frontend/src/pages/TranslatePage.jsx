@@ -90,6 +90,7 @@ export default function TranslatePage() {
   const [isPlayingBeatSolo, setIsPlayingBeatSolo] = useState(false);
   const [customBeatName, setCustomBeatName] = useState('');
   const [isMixingDownload, setIsMixingDownload] = useState(false);
+  const [downloadingSide, setDownloadingSide] = useState(null); // 'input' | 'output' | null
 
   // Suno AI Song Mode Modal / Panel
   const [showSunoModal, setShowSunoModal] = useState(false);
@@ -278,14 +279,21 @@ export default function TranslatePage() {
   // -------------------------------------------------------------
   // Audio Downloads (Voice Only MP3 & Mixed Beat WAV)
   // -------------------------------------------------------------
-  const handleDownloadAudioOnly = (side) => {
+  const handleDownloadAudioOnly = async (side) => {
     const text = side === 'input' ? inputText : translatedText;
     const lang = side === 'input' ? (sourceLang === 'auto' ? 'hi' : sourceLang) : targetLang;
 
     if (!text || !text.trim()) return;
 
-    const safeName = `truthshield-${side}-${lang}-${voiceGender}.mp3`;
-    voiceService.downloadAudio(text, lang, safeName, voiceGender);
+    setDownloadingSide(side);
+    try {
+      const safeName = `truthshield-${side}-${lang}-${voiceGender}.mp3`;
+      await voiceService.downloadAudio(text, lang, safeName, voiceGender);
+    } catch (err) {
+      console.error('Audio download error:', err);
+    } finally {
+      setDownloadingSide(null);
+    }
   };
 
   const handleDownloadWithBeat = async (side) => {
@@ -690,12 +698,21 @@ export default function TranslatePage() {
               <button
                 type="button"
                 onClick={() => handleDownloadAudioOnly('input')}
-                disabled={!inputText.trim()}
+                disabled={!inputText.trim() || downloadingSide === 'input'}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-dark-900 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                title="Download clear speech MP3 without background music"
+                title="Download full audio MP3 of entire document or text"
               >
-                <Download className="w-3.5 h-3.5 text-slate-400" />
-                <span>Voice MP3</span>
+                {downloadingSide === 'input' ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                    <span>Creating MP3...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Voice MP3 (Full)</span>
+                  </>
+                )}
               </button>
 
               {/* Download Mixed with Beat */}
@@ -880,12 +897,21 @@ export default function TranslatePage() {
               <button
                 type="button"
                 onClick={() => handleDownloadAudioOnly('output')}
-                disabled={!translatedText.trim()}
+                disabled={!translatedText.trim() || downloadingSide === 'output'}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-dark-900 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                title="Download translated speech MP3 without background music"
+                title="Download full audio MP3 of entire translated document/text"
               >
-                <Download className="w-3.5 h-3.5 text-slate-400" />
-                <span>Voice MP3</span>
+                {downloadingSide === 'output' ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                    <span>Creating MP3...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Voice MP3 (Full)</span>
+                  </>
+                )}
               </button>
 
               {/* Download Mixed with Beat */}
