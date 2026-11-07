@@ -73,6 +73,9 @@ export default function TranslatePage() {
 
   // Dictation / Speech Recognition
   const [isDictating, setIsDictating] = useState(false);
+  const [dictateLang, setDictateLang] = useState('hi-IN');
+  const [dictationError, setDictationError] = useState('');
+  const dictationBaseTextRef = useRef('');
 
   // Document Upload (PDF, DOCX, TXT, MD)
   const [uploadedDoc, setUploadedDoc] = useState(null); // { filename, pages, words }
@@ -369,6 +372,15 @@ export default function TranslatePage() {
     }
   };
 
+  const handleSourceLangChange = (lang) => {
+    setSourceLang(lang);
+    if (lang !== 'auto') {
+      setDictateLang(voiceService.normalizeSttLanguage(lang));
+    } else {
+      setDictateLang('hi-IN');
+    }
+  };
+
   // Microphone Dictation for Input
   const handleToggleDictation = () => {
     if (isDictating) {
@@ -378,25 +390,31 @@ export default function TranslatePage() {
       voiceService.stopSpeaking();
       audioStudio.stopLiveBeat();
       setActivePlayingSide(null);
-      const dictateLang = sourceLang === 'auto' ? 'hi-IN' : sourceLang;
+      setDictationError('');
+
+      // Remember the text already present before mic started
+      dictationBaseTextRef.current = inputText.trim();
+
+      const targetSttLang = dictateLang || (sourceLang === 'auto' ? 'hi-IN' : voiceService.normalizeSttLanguage(sourceLang));
 
       voiceService.startListening({
-        lang: dictateLang,
-        onStart: () => setIsDictating(true),
-        onEnd: (finalText) => {
+        lang: targetSttLang,
+        onStart: () => {
+          setIsDictating(true);
+          setDictationError('');
+        },
+        onEnd: () => {
           setIsDictating(false);
-          if (finalText) {
-            setInputText(prev => (prev ? `${prev} ${finalText}` : finalText));
-          }
         },
         onError: (err) => {
           setIsDictating(false);
+          setDictationError(err || 'Microphone error. Please verify browser mic permissions.');
           console.warn('Dictation error:', err);
         },
         onResult: ({ combined }) => {
-          if (combined) {
-            setInputText(combined);
-          }
+          if (!combined) return;
+          const base = dictationBaseTextRef.current;
+          setInputText(base ? `${base} ${combined}` : combined);
         }
       });
     }
@@ -533,7 +551,7 @@ export default function TranslatePage() {
               </span>
               <select
                 value={sourceLang}
-                onChange={(e) => setSourceLang(e.target.value)}
+                onChange={(e) => handleSourceLangChange(e.target.value)}
                 className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 cursor-pointer"
               >
                 <option value="auto">🌐 Auto Detect (पहचानें)</option>
@@ -605,6 +623,24 @@ export default function TranslatePage() {
             </div>
           )}
 
+          {/* Dictation Error Alert Banner */}
+          {dictationError && (
+            <div className="px-3.5 py-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between gap-2 animate-fade-in">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm">⚠️</span>
+                <span>{dictationError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDictationError('')}
+                className="text-rose-400 hover:text-white p-0.5"
+                title="Dismiss"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* Input Textarea with Dictation Overlay */}
           <div className="relative flex-1 min-h-[200px]">
             <textarea
@@ -615,9 +651,9 @@ export default function TranslatePage() {
               className="w-full h-full min-h-[200px] bg-dark-900/90 border border-slate-700/80 rounded-2xl p-4 text-sm sm:text-base text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 leading-relaxed resize-none transition-colors"
             />
             {isDictating && (
-              <div className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-semibold animate-pulse">
-                <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-                <span>Listening... बोलें</span>
+              <div className="absolute top-3 right-3 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-500/25 border border-rose-500/50 text-rose-200 text-xs font-semibold animate-pulse shadow-lg backdrop-blur-md">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+                <span>Listening in {dictateLang.startsWith('hi') ? 'हिन्दी' : 'English'}... बोलिए</span>
               </div>
             )}
           </div>
@@ -679,23 +715,61 @@ export default function TranslatePage() {
               </button>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-500">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] text-slate-500 hidden sm:inline">
                 {inputText.length} chars
               </span>
+
+              {/* Quick STT Language Toggle (Hindi / English) */}
+              <div className="flex items-center bg-slate-900 border border-slate-700/80 rounded-xl p-0.5 text-[10px]">
+                <button
+                  type="button"
+                  onClick={() => setDictateLang('hi-IN')}
+                  className={`px-2 py-0.5 rounded-lg font-semibold transition-colors cursor-pointer ${
+                    dictateLang.startsWith('hi')
+                      ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                  title="Speak in Hindi (हिन्दी में बोलें)"
+                >
+                  हिन्दी
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDictateLang('en-IN')}
+                  className={`px-2 py-0.5 rounded-lg font-semibold transition-colors cursor-pointer ${
+                    dictateLang.startsWith('en')
+                      ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                  title="Speak in English"
+                >
+                  EN
+                </button>
+              </div>
 
               {/* Dictation Mic Button */}
               <button
                 type="button"
                 onClick={handleToggleDictation}
-                className={`p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-md ${
                   isDictating
-                    ? 'bg-rose-600 text-white border-rose-500 animate-pulse'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                    ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-500 animate-pulse shadow-rose-600/30 ring-2 ring-rose-400/50'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
                 }`}
-                title={isDictating ? "Stop voice dictation" : "Dictate via microphone"}
+                title={isDictating ? "Stop voice dictation (बोलना बंद करें)" : "Speak to write via microphone (बोलकर लिखें)"}
               >
-                {isDictating ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                {isDictating ? (
+                  <>
+                    <MicOff className="w-3.5 h-3.5" />
+                    <span>Stop Mic</span>
+                  </>
+                ) : (
+                  <>
+                    <Mic className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Speak (बोलें)</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

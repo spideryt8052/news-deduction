@@ -400,20 +400,13 @@ class VoiceService {
     onStart,
     onEnd,
     onError,
-    lang = 'en-US'
+    lang = 'hi-IN'
   }) {
-    // 1. Proactively ensure microphone permission is granted
-    const hasPermission = await this.ensureMicrophonePermission();
-    if (!hasPermission) {
-      if (onError) onError('Microphone access was denied. Please click the lock or mic icon in your address bar and select "Allow".');
-      return null;
-    }
-
-    // 2. Stop any existing voice or speech recognition
+    // 1. Stop any existing voice or speech recognition
     this.stopListening();
     this.stopSpeaking();
 
-    // 3. Fallback to MediaRecorder if Web Speech API is not supported (Firefox, Brave, HTTP tunnel)
+    // 2. Fallback to MediaRecorder if Web Speech API is not supported (Firefox, Brave, HTTP tunnel)
     if (!this.isSpeechRecognitionSupported()) {
       return this.startMediaRecorderFallback({ onResult, onStart, onEnd, onError, lang });
     }
@@ -424,59 +417,68 @@ class VoiceService {
       this.recognition.interimResults = true;
       this.recognition.lang = this.normalizeSttLanguage(lang);
 
-      let capturedFinal = '';
-      let latestCombined = '';
-
       this.recognition.onstart = () => {
         this.isListening = true;
         if (onStart) onStart();
       };
 
       this.recognition.onresult = (event) => {
+        let finalTranscript = '';
         let interimTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const chunk = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            capturedFinal += (capturedFinal ? ' ' : '') + chunk.trim();
+
+        for (let i = 0; i < event.results.length; ++i) {
+          const item = event.results[i];
+          const text = item[0].transcript;
+          if (item.isFinal) {
+            finalTranscript += (finalTranscript ? ' ' : '') + text.trim();
           } else {
-            interimTranscript += chunk;
+            interimTranscript += text;
           }
         }
 
-        latestCombined = (capturedFinal + (interimTranscript ? ' ' + interimTranscript : '')).trim();
-        this._lastCapturedText = latestCombined;
+        const currentCombined = (finalTranscript + (interimTranscript ? ' ' + interimTranscript.trim() : '')).trim();
+        this._lastCapturedText = currentCombined;
 
         if (onResult) {
           onResult({
-            final: capturedFinal,
+            final: finalTranscript.trim(),
             interim: interimTranscript.trim(),
-            combined: latestCombined
+            combined: currentCombined
           });
         }
       };
 
       this.recognition.onerror = (event) => {
-        console.warn('Speech recognition notice:', event.error);
+        console.warn('Speech recognition notice/error:', event.error);
         if (event.error === 'no-speech') {
+          // Normal silence, don't abort
           return;
         }
         if (event.error === 'language-not-supported') {
-          console.warn('STT language not supported by browser, falling back to en-US');
-          this.stopListening();
-          this.startListening({ onResult, onStart, onEnd, onError, lang: 'en-US' });
+          console.warn('STT language not supported, falling back to en-IN');
+          try {
+            this.recognition.lang = 'en-IN';
+          } catch (_) {}
           return;
         }
         if (onError) {
-          let message = 'Speech recognition notice.';
-          if (event.error === 'not-allowed') message = 'Microphone access was denied. Please allow microphone permissions.';
-          else if (event.error === 'network') message = 'Network communication error during speech recognition.';
+          let message = 'Speech recognition error: ' + event.error;
+          if (event.error === 'not-allowed') {
+            message = 'Microphone access was denied. Please click the lock or mic icon in your address bar and select "Allow".';
+          } else if (event.error === 'audio-capture') {
+            message = 'No microphone device found or audio hardware is busy. Please verify your microphone is plugged in.';
+          } else if (event.error === 'network') {
+            message = 'Speech recognition network notice. Please verify internet connectivity.';
+          }
           onError(message);
         }
       };
 
       this.recognition.onend = () => {
         this.isListening = false;
-        if (onEnd) onEnd(latestCombined || this._lastCapturedText || '');
+        if (onEnd) {
+          onEnd(this._lastCapturedText || '');
+        }
       };
 
       this.recognition.start();
