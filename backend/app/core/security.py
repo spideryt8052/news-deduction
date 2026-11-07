@@ -3,6 +3,7 @@ TruthShield Security & Cryptographic Authentication Module
 Supports PBKDF2 password hashing and HMAC-SHA256 signed access tokens.
 """
 
+import os
 import hashlib
 import hmac
 import secrets
@@ -12,8 +13,12 @@ import time
 from typing import Optional, Dict, Any
 from app.core.config import settings
 
-# Secret key for HMAC token signing
-SECRET_KEY = getattr(settings, "SECRET_KEY", "truthshield_jwt_secret_key_ aktu_2026_super_secure")
+# Load cryptographic secret key from environment / config (fallback to a unique per-instance secret)
+_env_secret = (getattr(settings, "SECRET_KEY", "") or os.environ.get("SECRET_KEY", "")).strip()
+if not _env_secret or _env_secret == "truthshield_jwt_secret_key_ aktu_2026_super_secure":
+    _env_secret = secrets.token_hex(32)
+
+SECRET_KEY = _env_secret
 
 def hash_password(password: str) -> str:
     """Hashes a password using PBKDF2-HMAC-SHA256 with 100,000 rounds and random salt."""

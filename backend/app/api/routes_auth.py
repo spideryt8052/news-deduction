@@ -85,9 +85,9 @@ async def register_with_otp(payload: VerifyOtpRegisterRequest, db: Session = Dep
             detail="An account with this email address already exists."
         )
 
-    # 3. Create account
+    # 3. Create account (Only first user bootstrap is admin; all subsequent registrations are strictly 'user')
     user_count = db.query(UserModel).count()
-    assigned_role = "admin" if (user_count == 0 or "admin" in email_clean) else (payload.role or "user")
+    assigned_role = "admin" if user_count == 0 else "user"
 
     user_id = str(uuid.uuid4())
     hashed_pwd = hash_password(payload.password)
@@ -187,9 +187,9 @@ async def register_user(payload: UserRegisterRequest, db: Session = Depends(get_
             detail="An account with this email address already exists."
         )
 
-    # Determine role (first registered user or email with admin can be admin)
+    # Determine role (Only first bootstrap user is admin; all subsequent registrations are strictly 'user')
     user_count = db.query(UserModel).count()
-    assigned_role = "admin" if (user_count == 0 or "admin" in email_clean) else (payload.role or "user")
+    assigned_role = "admin" if user_count == 0 else "user"
 
     user_id = str(uuid.uuid4())
     hashed_pwd = hash_password(payload.password)

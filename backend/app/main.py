@@ -57,7 +57,7 @@ app = FastAPI(
 )
 
 # Configure CORS Middleware
-# Explicitly support localhost and 127.0.0.1 on any port (Vite, Next, mobile preview, etc.)
+# Explicitly support localhost, 127.0.0.1, and configured production origins
 _allowed_origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -73,7 +73,7 @@ for _o in settings.CORS_ORIGINS:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|.*\.trycloudflare\.com|.*\.netlify\.app|.*\.vercel\.app|.*\.onrender\.com|.*\.railway\.app)(:\d+)?$",
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

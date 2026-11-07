@@ -32,25 +32,41 @@ class OtpService:
 
     @classmethod
     def generate_otp(cls, length: int = 6) -> str:
-        """Generates a secure numeric 6-digit one-time code."""
-        return "".join([str(random.randint(0, 9)) for _ in range(length)])
+        """Generates a cryptographically secure numeric 6-digit one-time code using system entropy."""
+        import secrets
+        return "".join([secrets.choice("0123456789") for _ in range(length)])
 
     @classmethod
     def create_and_send_otp(cls, email: str, purpose: str = "register") -> Dict[str, Any]:
         """
         Generates, caches, and sends a verification OTP directly to the target email inbox.
-        NEVER sends preview_code back in the response.
+        Enforces a 60-second cooldown per email to protect against email flooding / DoS.
         """
         clean_email = email.strip().lower()
+        now = time.time()
+
+        # Rate-limiting: Enforce 60-second anti-spam cooldown per email
+        existing = cls._otp_store.get(clean_email)
+        if existing and (now - existing.get("created_at", 0)) < 60:
+            wait_sec = int(60 - (now - existing.get("created_at", 0)))
+            return {
+                "success": False,
+                "message": f"Please wait {wait_sec} seconds before requesting another verification code.",
+                "email": clean_email,
+                "expires_in_seconds": 0,
+                "preview_code": None
+            }
+
         otp = cls.generate_otp(6)
         ttl = 600  # 10 minutes
-        expires_at = time.time() + ttl
+        expires_at = now + ttl
 
         # Temporarily store OTP
         cls._otp_store[clean_email] = {
             "otp": otp,
             "purpose": purpose,
             "expires_at": expires_at,
+            "created_at": now,
             "attempts": 0
         }
 

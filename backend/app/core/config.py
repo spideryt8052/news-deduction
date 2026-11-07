@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     # Database URL: SQLite by default for zero-friction local run; PostgreSQL in production
     DATABASE_URL: str = "sqlite:///./misinfo_app.db"
     
+    # Cryptographic JWT Secret Key (Should be set in .env with a 64+ char random hex string)
+    SECRET_KEY: str = ""
+    
     # AI Engine Provider: "auto", "groq", "gemini", "openai", "anthropic", or "mock"
     AI_PROVIDER: str = "auto"
     

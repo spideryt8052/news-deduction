@@ -128,13 +128,23 @@ async def extract_document_text(file: UploadFile = File(...)):
             detail=f"Unsupported file format '.{ext}'. Supported formats: {', '.join('.' + a for a in allowed)}"
         )
     
-    contents = await file.read()
-    if not contents:
+    # Secure streaming read with strict 15MB ceiling to prevent Memory Exhaustion DoS attacks
+    max_size = 15 * 1024 * 1024  # 15MB
+    chunks = []
+    total_bytes = 0
+    while True:
+        chunk = await file.read(512 * 1024)
+        if not chunk:
+            break
+        total_bytes += len(chunk)
+        if total_bytes > max_size:
+            raise HTTPException(status_code=400, detail="Document exceeds 15MB file size limit.")
+        chunks.append(chunk)
+
+    if total_bytes == 0:
         raise HTTPException(status_code=400, detail="The uploaded document is empty.")
-    
-    # 15MB limit
-    if len(contents) > 15 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="Document exceeds 15MB file size limit.")
+
+    contents = b"".join(chunks)
         
     extracted_text = ""
     pages_count = 1
