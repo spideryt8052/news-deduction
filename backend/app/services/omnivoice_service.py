@@ -82,31 +82,76 @@ class OmniVoiceService:
 
     @classmethod
     def clean_text_for_speech(cls, text: str) -> str:
-        """Removes markdown, emojis, URLs, and noisy symbols so speech synthesis sounds natural."""
+        """Removes markdown, emojis, URLs, and noisy symbols so speech synthesis sounds natural without pronouncing punctuation."""
         if not text:
             return ""
         t = text
-        # Remove URLs
+
+        # 1. Remove URLs
         t = re.sub(r'https?://\S+', '', t)
         t = re.sub(r'www\.\S+', '', t)
-        # Remove markdown code, bold, italic
+
+        # 2. Remove markdown code, bold, italic, quotes
         t = re.sub(r'```[\s\S]*?```', '', t)
         t = re.sub(r'`[^`]+`', '', t)
         t = re.sub(r'(\*\*|__)(.*?)\1', r'\2', t)
         t = re.sub(r'(\*|_)(.*?)\1', r'\2', t)
-        # Remove markdown headers & list bullets
+        t = re.sub(r'~~(.*?)~~', r'\1', t)
+
+        # 3. Remove markdown headers & list bullets
         t = re.sub(r'^#{1,6}\s+', '', t, flags=re.MULTILINE)
-        t = re.sub(r'^\s*[-*+•►▶]\s+', '', t, flags=re.MULTILINE)
-        t = re.sub(r'^\s*\d+[\.\)]\s+', '', t, flags=re.MULTILINE)
-        # Remove emojis & symbols
+        t = re.sub(r'^\s*[-*+•►▶▪▫]\s+', '', t, flags=re.MULTILINE)
+
+        # 4. Fix numbered list items (e.g. '1.' -> '1, ' so TTS does not say 'one dot' / 'ek dot')
+        t = re.sub(r'(^|\s+)(\d+)\s*[\.\)]\s*', r'\1\2, ', t)
+
+        # 5. Remove emojis and pictographic icons
         t = re.sub(r'[\U00010000-\U0010ffff]', '', t)
-        t = re.sub(r'[🛡️✓✗⚡✦➜►▶★●■◆▼▲•❌✅⚠️🌐🤖]', '', t)
-        # Remove standalone brackets and technical symbols
-        t = re.sub(r'[\[\]\(\)\{\}<>|\\/_~^#*"`]', ' ', t)
+        t = re.sub(r'[🛡️✓✗⚡✦➜►▶★●■◆▼▲•❌✅⚠️🌐🤖👋🙏👍👎🔥✨🎉💡🔍📌]', '', t)
+
+        # 6. FIX EXCLAMATION MARK & PUNCTUATION BUGS:
+        # TTS in Hindi literally pronounces '!' as 'dot' or 'vismayadibodhak'.
+        # Replace '!' with poorna viraam or comma pause
+        t = re.sub(r'[!！]+', '। ', t)
+
+        # Replace colons and semicolons with natural comma pauses so it doesn't say 'colon'
+        t = re.sub(r'[:;：；]+', ', ', t)
+
+        # Replace hyphens and em-dashes between words with space so it doesn't say 'minus' / 'dash'
+        t = re.sub(r'(\w+)[-—–]+(\w+)', r'\1 \2', t)
+        t = re.sub(r'[-—–]+', ' ', t)
+
+        # 7. Convert symbols and technical brackets
+        t = re.sub(r'[\[\]\(\)\{\}<>|\\/_~^#*"`\'\"\"\'\']', ' ', t)
+
+        # Convert % to natural words
+        t = re.sub(r'(\d+)\s*%', r'\1 प्रतिशत', t)
+
+        # 8. Clean repeated dots and periods (e.g. '...' -> '। ')
+        t = re.sub(r'\.{2,}', '। ', t)
+        t = re.sub(r'[।,]\s*[।,]+', '। ', t)
+
+        # 9. Clean standalone isolated punctuation marks
         t = re.sub(r'(^|\s+)[\.,\-:;\|/\\]+(\s+|$)', ' ', t)
-        t = re.sub(r'\.{2,}', '. ', t)
         t = re.sub(r'\s{2,}', ' ', t).strip()
-        return t
+
+        # 10. Deduplicate consecutive repeated sentences (e.g. 'नमस्ते! नमस्ते!' or repeated phrases)
+        parts = re.split(r'([।\.\?\!\n]+)', t)
+        deduped = []
+        last_clean = ""
+        for i in range(0, len(parts), 2):
+            sentence = parts[i].strip()
+            punct = parts[i+1] if i+1 < len(parts) else ""
+            if not sentence:
+                continue
+            norm = sentence.lower()
+            if norm != last_clean:
+                deduped.append(sentence + (punct if punct else "। "))
+                last_clean = norm
+
+        result_text = "".join(deduped).strip()
+        result_text = re.sub(r'\s{2,}', ' ', result_text)
+        return result_text or t
 
     @classmethod
     def generate_report_script(

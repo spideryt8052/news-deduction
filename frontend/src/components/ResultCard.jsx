@@ -22,7 +22,10 @@ import {
   MapPin,
   Calendar,
   Layers,
-  MessageSquare
+  MessageSquare,
+  Download,
+  Languages,
+  Loader2
 } from 'lucide-react';
 import ConfidenceMeter from './ConfidenceMeter';
 import SourceCard from './SourceCard';
@@ -37,9 +40,12 @@ export default function ResultCard({ result, onReset }) {
   const [feedbackSent, setFeedbackSent] = useState(null); // 'helpful' | 'unhelpful'
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceLang, setVoiceLang] = useState(result?.selected_language || 'hi-IN');
+  const [translatedData, setTranslatedData] = useState(null);
+  const [isTranslating, setIsTranslating] = useState(false);
 
   useEffect(() => {
     // Stop speech when component unmounts or result changes
+    setTranslatedData(null);
     return () => {
       voiceService.stopSpeaking();
     };
@@ -61,12 +67,18 @@ export default function ResultCard({ result, onReset }) {
     created_at
   } = result;
 
+  const displayClaim = translatedData?.claim || claim;
+  const displaySummary = translatedData?.summary || summary;
+  const displayRecommendation = translatedData?.recommendation || recommendation;
+  const displayReasons = (translatedData?.reasons && translatedData.reasons.length > 0) ? translatedData.reasons : reasons;
+  const displayProvenance = translatedData?.provenance_details || origin_info?.provenance_details;
+
   const theme = CLASSIFICATION_THEMES[classification] || CLASSIFICATION_THEMES['Needs Further Verification'];
 
   const handleCopy = () => {
     const textToCopy = `TruthShield Assessment: ${classification} (${Math.round(confidence * 100)}% Confidence)
-Claim: "${claim}"
-Recommendation: ${recommendation}`;
+Claim: "${displayClaim}"
+Recommendation: ${displayRecommendation}`;
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
@@ -77,7 +89,14 @@ Recommendation: ${recommendation}`;
       voiceService.stopSpeaking();
       setIsSpeaking(false);
     } else {
-      const speechScript = voiceService.formatReportScript(result, voiceLang);
+      const activeObj = {
+        ...result,
+        claim: displayClaim,
+        summary: displaySummary,
+        recommendation: displayRecommendation,
+        reasons: displayReasons
+      };
+      const speechScript = voiceService.formatReportScript(activeObj, voiceLang);
       voiceService.speak(speechScript, {
         lang: voiceLang,
         readFull: true,
@@ -85,6 +104,74 @@ Recommendation: ${recommendation}`;
         onEnd: () => setIsSpeaking(false),
         onError: () => setIsSpeaking(false)
       });
+    }
+  };
+
+  const handleDownloadAudio = () => {
+    const activeObj = {
+      ...result,
+      claim: displayClaim,
+      summary: displaySummary,
+      recommendation: displayRecommendation,
+      reasons: displayReasons
+    };
+    const speechScript = voiceService.formatReportScript(activeObj, voiceLang);
+    const langKey = (voiceLang || 'hi').split('-')[0].toLowerCase();
+    voiceService.downloadAudio(speechScript, voiceLang, `truthshield-report-${langKey}.mp3`);
+  };
+
+  const handleTranslateReport = async (targetLangCode) => {
+    if (!targetLangCode || targetLangCode === 'original') {
+      setTranslatedData(null);
+      return;
+    }
+    setIsTranslating(true);
+    try {
+      const langKey = targetLangCode.split('-')[0].toLowerCase();
+      
+      const payloadLines = [
+        `CLAIM: ${claim || ''}`,
+        `SUMMARY: ${summary || ''}`,
+        `RECOMMENDATION: ${recommendation || ''}`,
+        reasons && reasons.length > 0 ? `REASONS: ${reasons.join(' || ')}` : '',
+        origin_info?.provenance_details ? `PROVENANCE: ${origin_info.provenance_details}` : ''
+      ].filter(Boolean).join('\n---\n');
+
+      const res = await api.translateText(payloadLines, langKey);
+      const text = res.translated_text || '';
+
+      const parts = text.split('\n---\n');
+      let transClaim = claim;
+      let transSummary = summary;
+      let transRec = recommendation;
+      let transReasons = reasons;
+      let transProv = origin_info?.provenance_details;
+
+      parts.forEach(part => {
+        const t = part.trim();
+        if (t.startsWith('CLAIM:')) transClaim = t.replace('CLAIM:', '').trim();
+        else if (t.startsWith('SUMMARY:')) transSummary = t.replace('SUMMARY:', '').trim();
+        else if (t.startsWith('RECOMMENDATION:')) transRec = t.replace('RECOMMENDATION:', '').trim();
+        else if (t.startsWith('REASONS:')) {
+          const arr = t.replace('REASONS:', '').split('||').map(s => s.trim()).filter(Boolean);
+          if (arr.length > 0) transReasons = arr;
+        }
+        else if (t.startsWith('PROVENANCE:')) transProv = t.replace('PROVENANCE:', '').trim();
+      });
+
+      setTranslatedData({
+        claim: transClaim || claim,
+        summary: transSummary || summary,
+        recommendation: transRec || recommendation,
+        reasons: transReasons || reasons,
+        provenance_details: transProv || origin_info?.provenance_details,
+        lang: targetLangCode
+      });
+      setVoiceLang(targetLangCode);
+    } catch (err) {
+      console.warn('Translate report error:', err);
+    } finally {
+      setIsTranslating(false);
     }
   };
 
@@ -122,26 +209,61 @@ Recommendation: ${recommendation}`;
             </span>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-wrap gap-2">
+            {/* Translated status indicator */}
+            {translatedData && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-[11px] text-cyan-300">
+                <Languages className="w-3 h-3 text-cyan-400" />
+                <span className="font-medium">Translated</span>
+                <button
+                  type="button"
+                  onClick={() => setTranslatedData(null)}
+                  className="text-slate-400 hover:text-white underline text-[10px] ml-1 cursor-pointer"
+                >
+                  Original
+                </button>
+              </div>
+            )}
+
             {/* OmniVoice Language Select & Report Reader */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-700/80 rounded-xl p-1">
               <select
                 value={voiceLang}
                 onChange={(e) => {
-                  setVoiceLang(e.target.value);
+                  const newL = e.target.value;
+                  setVoiceLang(newL);
                   voiceService.stopSpeaking();
                   setIsSpeaking(false);
+                  handleTranslateReport(newL);
                 }}
-                className="bg-slate-900/90 border border-slate-700/80 rounded-lg px-2 py-1 text-[11px] text-slate-300 focus:outline-none focus:border-cyan-500 cursor-pointer"
-                title="OmniVoice Narration Language"
+                className="bg-transparent border-none text-[11px] text-slate-300 focus:outline-none cursor-pointer px-1 py-0.5"
+                title="Select language to translate and listen"
               >
                 {OMNIVOICE_LANGUAGES.map((l) => (
-                  <option key={l.id} value={l.code || l.id}>
-                    {l.flag} {l.name} ({l.native})
+                  <option key={l.id} value={l.code || l.id} className="bg-slate-900 text-slate-200">
+                    {l.flag} {l.name}
                   </option>
                 ))}
               </select>
 
+              <button
+                type="button"
+                onClick={() => handleTranslateReport(voiceLang)}
+                disabled={isTranslating}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-[11px] font-semibold transition-colors cursor-pointer"
+                title="Translate this report into selected language"
+              >
+                {isTranslating ? (
+                  <Loader2 className="w-3 h-3 animate-spin text-cyan-400" />
+                ) : (
+                  <Languages className="w-3 h-3 text-cyan-400" />
+                )}
+                <span>{isTranslating ? 'Translating...' : 'Translate'}</span>
+              </button>
+            </div>
+
+            {/* Audio Listen & Download MP3 Controls */}
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={handleToggleVoiceReport}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
@@ -167,6 +289,16 @@ Recommendation: ${recommendation}`;
                     <span>Listen</span>
                   </>
                 )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDownloadAudio}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-all cursor-pointer"
+                title="Download Audio Report (MP3)"
+              >
+                <Download className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden sm:inline">Download MP3</span>
               </button>
             </div>
 
@@ -203,7 +335,7 @@ Recommendation: ${recommendation}`;
               </span>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed pt-1">
-              {summary || theme.description}
+              {displaySummary || theme.description}
             </p>
           </div>
 
@@ -220,7 +352,7 @@ Recommendation: ${recommendation}`;
             <span>Extracted Primary Claim:</span>
           </div>
           <p className="text-sm sm:text-base font-medium text-white italic">
-            "{claim || 'Analyzing submitted information'}"
+            "{displayClaim || 'Analyzing submitted information'}"
           </p>
         </div>
 
@@ -283,7 +415,7 @@ Recommendation: ${recommendation}`;
                 <div className="font-semibold text-cyan-300 flex items-center gap-1.5">
                   <span>🔬 Provenance & Authenticity Details:</span>
                 </div>
-                <p className="text-slate-300">{origin_info.provenance_details}</p>
+                <p className="text-slate-300">{displayProvenance || origin_info.provenance_details}</p>
               </div>
             )}
           </div>
@@ -296,8 +428,8 @@ Recommendation: ${recommendation}`;
             <span>Why This Result?</span>
           </h4>
           <ul className="space-y-2">
-            {reasons.length > 0 ? (
-              reasons.map((reason, index) => (
+            {displayReasons && displayReasons.length > 0 ? (
+              displayReasons.map((reason, index) => (
                 <li key={index} className="flex items-start space-x-2 text-xs sm:text-sm text-slate-300">
                   <span className="text-cyan-400 font-bold mt-0.5">•</span>
                   <span>{reason}</span>
@@ -339,7 +471,7 @@ Recommendation: ${recommendation}`;
             <span>Think Before You Share — Actionable Guidance:</span>
           </div>
           <p className="text-slate-300 leading-relaxed">
-            {recommendation || 'Always consult verified official registries or independent news agencies before forwarding.'}
+            {displayRecommendation || 'Always consult verified official registries or independent news agencies before forwarding.'}
           </p>
         </div>
 

@@ -2,10 +2,13 @@ import os
 import json
 import re
 import httpx
+import logging
 from typing import Dict, Any, Optional, Tuple
 from app.core.config import settings
 from app.services.evidence_engine import EvidenceEngine
 from app.schemas.analysis import EvidenceItem
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """
 You are an objective AI verification assistant for TruthShield, an advanced misinformation detection and social media credibility assessment platform.
@@ -919,3 +922,95 @@ class LLMService:
             "- किसी भी दावे या जानकारी को साझा करने से पहले विश्वसनीय स्रोतों से सत्यापित करें।\n"
             "- सोशल मीडिया फॉरवर्ड्स को बिना जांचे आगे न भेजें।"
         )
+
+    @classmethod
+    def translate(
+        cls, 
+        text: str, 
+        target_lang: str = "hi", 
+        source_lang: str = "auto",
+        provider: Optional[str] = None,
+        api_key: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Translates text into target human language using active LLM with high-speed fallback."""
+        if not text or not text.strip():
+            return {"translated_text": "", "target_lang": target_lang, "source_lang": source_lang}
+
+        clean_text = text.strip()
+        lang_code = target_lang.split("-")[0].lower()
+
+        LANG_NAMES = {
+            "hi": "Hindi (हिन्दी)", "en": "English", "bho": "Bhojpuri (भोजपुरी)",
+            "ur": "Urdu (اردو)", "bn": "Bengali (বাংলা)", "pa": "Punjabi (ਪੰਜਾਬੀ)",
+            "mr": "Marathi (मराठी)", "ta": "Tamil (தமிழ்)", "te": "Telugu (తెలుగు)",
+            "gu": "Gujarati (ગુજરાતી)", "kn": "Kannada (ಕನ್ನಡ)", "ml": "Malayalam (മലയാളം)",
+            "as": "Assamese (অসমীয়া)", "mai": "Maithili (मैथिली)", "ar": "Arabic (العربية)",
+            "es": "Spanish (Español)", "fr": "French (Français)", "de": "German (Deutsch)",
+            "ru": "Russian (Русский)", "zh": "Chinese (中文)", "ja": "Japanese (日本語)",
+            "ko": "Korean (한국어)", "id": "Indonesian", "tr": "Turkish", "vi": "Vietnamese",
+            "fa": "Persian", "sw": "Swahili"
+        }
+        target_name = LANG_NAMES.get(lang_code, target_lang)
+
+        prompt = (
+            f"You are a professional multilingual translator. Translate the following text into natural, fluent {target_name}. "
+            "Maintain the exact factual meaning, credibility tone, and appropriate native script. "
+            "Return ONLY the translated text without commentary, quotes, or markdown wrappers.\n\n"
+            f"Text:\n{clean_text}"
+        )
+
+        try:
+            target_prov = (provider or settings.AI_PROVIDER or "auto").lower()
+            if target_prov in ["ollama", "local"] or (target_prov == "auto" and cls.check_ollama_alive()):
+                ollama_res = cls.call_ollama(prompt)
+                if ollama_res and isinstance(ollama_res, str):
+                    return {"translated_text": ollama_res.strip(), "target_lang": target_lang, "source_lang": source_lang, "engine": "ollama"}
+                elif ollama_res and isinstance(ollama_res, dict) and "summary" in ollama_res:
+                    return {"translated_text": ollama_res.get("summary"), "target_lang": target_lang, "source_lang": source_lang, "engine": "ollama"}
+
+            gemini_key = cls.get_key_for_provider("gemini", api_key)
+            if gemini_key:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key={gemini_key}"
+                with httpx.Client(timeout=10) as client:
+                    resp = client.post(url, json={
+                        "contents": [{"parts": [{"text": prompt}]}]
+                    }, headers={"Content-Type": "application/json"})
+                    if resp.status_code == 200:
+                        cands = resp.json().get("candidates", [])
+                        if cands and "content" in cands[0]:
+                            translated = cands[0]["content"]["parts"][0]["text"].strip()
+                            if translated:
+                                return {"translated_text": translated, "target_lang": target_lang, "source_lang": source_lang, "engine": "gemini"}
+
+            groq_key = cls.get_key_for_provider("groq", api_key)
+            if groq_key:
+                with httpx.Client(timeout=10) as client:
+                    resp = client.post("https://api.groq.com/openai/v1/chat/completions", json={
+                        "model": "llama-3.3-70b-versatile",
+                        "messages": [
+                            {"role": "system", "content": f"You are a translator. Translate directly into {target_name}. Return only the translation."},
+                            {"role": "user", "content": clean_text}
+                        ],
+                        "temperature": 0.2
+                    }, headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"})
+                    if resp.status_code == 200:
+                        translated = resp.json()["choices"][0]["message"]["content"].strip()
+                        if translated:
+                            return {"translated_text": translated, "target_lang": target_lang, "source_lang": source_lang, "engine": "groq"}
+        except Exception as e:
+            logger.warning(f"LLM translation notice: {e}")
+
+        # Universal zero-failure Google Translate API fallback
+        import urllib.request, urllib.parse, json
+        try:
+            url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl={source_lang}&tl={lang_code}&dt=t&q={urllib.parse.quote(clean_text)}"
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+            with urllib.request.urlopen(req, timeout=8) as r:
+                data = json.loads(r.read().decode("utf-8"))
+                translated = "".join(chunk[0] for chunk in data[0] if chunk[0])
+                if translated:
+                    return {"translated_text": translated.strip(), "target_lang": target_lang, "source_lang": source_lang, "engine": "gtx"}
+        except Exception as e:
+            logger.warning(f"Translation fallback error: {e}")
+
+        return {"translated_text": clean_text, "target_lang": target_lang, "source_lang": source_lang, "engine": "original"}

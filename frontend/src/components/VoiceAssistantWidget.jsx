@@ -11,7 +11,8 @@ import {
   Bot,
   User,
   Radio,
-  Play
+  Play,
+  Download
 } from 'lucide-react';
 import voiceService, { OMNIVOICE_LANGUAGES } from '../services/voiceService';
 import api from '../services/api';
@@ -90,27 +91,27 @@ function getLocalizedKnowledgeAnswer(queryLower, langCode) {
 
 function getLocalizedGreeting(langCode) {
   if (langCode === 'hi') {
-    return "नमस्ते! 👋 मैं ट्रुथशील्ड का वॉयस असिस्टेंट हूँ। आप मुझसे कोई भी सवाल पूछ सकते हैं या किसी खबर की सच्चाई जांच सकते हैं।";
+    return "नमस्ते, मैं ट्रुथशील्ड का वॉयस असिस्टेंट हूँ। आप मुझसे कोई भी सवाल पूछ सकते हैं या किसी खबर की सच्चाई जांच सकते हैं।";
   }
   if (langCode === 'bho') {
-    return "प्रणाम! 👋 हम ट्रुथशील्ड के वॉयस असिस्टेंट हईं। रउआ हमरा से कवनो भी सवाल पूछ सकीं ले भा खबर के सच्चाई जांच सकीं ले।";
+    return "प्रणाम, हम ट्रुथशील्ड के वॉयस असिस्टेंट हईं। रउआ हमरा से कवनो भी सवाल पूछ सकीं ले भा खबर के सच्चाई जांच सकीं ले।";
   }
   if (langCode === 'ar') {
-    return "مرحبًا بك! 👋 أنا المساعد الصوتي لتروث شيلد. يمكنك سؤالي عن أي شيء أو التحقق من صحة أي خبر.";
+    return "مرحبًا بك، أنا المساعد الصوتي لتروث شيلد. يمكنك سؤالي عن أي شيء أو التحقق من صحة أي خبر.";
   }
   if (langCode === 'ur') {
-    return "السلام علیکم! 👋 میں ٹروتھ شیلڈ کا وائس اسسٹنٹ ہوں۔ آپ مجھ سے کوئی بھی سوال پوچھ سکتے ہیں یا خبر کی تصدیق کر سکتے ہیں۔";
+    return "السلام علیکم، میں ٹروتھ شیلڈ کا وائس اسسٹنٹ ہوں۔ آپ مجھ से کوئی بھی سوال پوچھ سکتے ہیں یا خبر کی تصدیق کر سکتے ہیں۔";
   }
   if (langCode === 'bn') {
-    return "নমস্কার! 👋 আমি ট্রুथশিল্ডের ভয়েস অ্যাসিস্ট্যান্ট। যেকোনো প্রশ্ন করুন বা সংবাদের সত্যতা যাচাই করুন।";
+    return "নমস্কার, আমি ট্রুথশিল্ডের ভয়েস অ্যাসিস্ট্যান্ট। যেকোনো প্রশ্ন করুন বা সংবাদের সত্যতা যাচাই করুন।";
   }
   if (langCode === 'pa') {
-    return "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! 👋 ਮੈਂ ਟਰੂਥਸ਼ੀਲਡ ਦਾ ਵੌਇਸ ਅਸਿਸਟੈਂਟ ਹਾਂ। ਕੋਈ ਵੀ ਸਵਾਲ ਪੁੱਛੋ ਜਾਂ ਖ਼ਬਰ ਦੀ ਪੜਤਾਲ ਕਰੋ।";
+    return "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ, ਮੈਂ ਟਰੂਥਸ਼ੀਲਡ ਦਾ ਵੌਇਸ ਅਸਿਸਟੈਂਟ ਹਾਂ। ਕੋਈ ਵੀ ਸਵਾਲ ਪੁੱਛੋ ਜਾਂ ਖ਼ਬਰ ਦੀ ਪੜਤਾਲ ਕਰੋ।";
   }
   if (langCode === 'es') {
-    return "¡Hola! 👋 Soy el Asistente de Voz de TruthShield. Pregúntame cualquier duda o verifica cualquier noticia.";
+    return "Hola, soy el Asistente de Voz de TruthShield. Pregúntame cualquier duda o verifica cualquier noticia.";
   }
-  return "Hello! 👋 I am TruthShield's Voice Assistant. Speak a news claim to verify, or ask me questions about media literacy.";
+  return "Hello, I am TruthShield's Voice Assistant. Speak a news claim to verify, or ask me questions about media literacy.";
 }
 
 function getLocalizedChips(langCode) {
@@ -172,6 +173,8 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
   const langDebounceTimerRef = useRef(null);
   const transcriptRef = useRef('');
   const silenceTimerRef = useRef(null);
+  const isSubmittingRef = useRef(false);
+  const lastSubmittedRef = useRef({ text: '', time: 0 });
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -205,9 +208,23 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
     transcriptRef.current = '';
     setTranscript('');
 
-    if (finalSpeech) {
-      processUserQuery(finalSpeech);
+    if (!finalSpeech) return;
+
+    // Prevent duplicate triggers (e.g. silence timer racing with speech recognition onEnd)
+    const now = Date.now();
+    if (
+      isSubmittingRef.current ||
+      (lastSubmittedRef.current.text === finalSpeech && (now - lastSubmittedRef.current.time) < 2500)
+    ) {
+      return;
     }
+
+    isSubmittingRef.current = true;
+    lastSubmittedRef.current = { text: finalSpeech, time: now };
+
+    processUserQuery(finalSpeech).finally(() => {
+      isSubmittingRef.current = false;
+    });
   };
 
   const handleStartListening = () => {
@@ -489,9 +506,31 @@ export default function VoiceAssistantWidget({ onAnalyzeRequested }) {
                     </button>
                   )}
 
-                  <span className="block text-[9px] text-slate-400 mt-1 opacity-70">
-                    {m.time}
-                  </span>
+                  <div className="mt-2 pt-1.5 border-t border-white/5 flex items-center justify-between gap-2">
+                    <span className="text-[9px] text-slate-400 opacity-70">
+                      {m.time}
+                    </span>
+                    {m.sender === 'assistant' && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => speakResponse(m.text)}
+                          className="p-1 rounded text-slate-400 hover:text-cyan-300 hover:bg-white/5 transition-colors"
+                          title="Listen to this message"
+                        >
+                          <Volume2 className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => voiceService.downloadAudio(m.text, selectedLang)}
+                          className="p-1 rounded text-slate-400 hover:text-cyan-300 hover:bg-white/5 transition-colors"
+                          title="Download Audio (MP3)"
+                        >
+                          <Download className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

@@ -23,6 +23,20 @@ class TestKeyResponse(BaseModel):
     success: bool
     message: str
 
+class TranslateRequest(BaseModel):
+    text: str
+    target_lang: str = "hi"
+    source_lang: Optional[str] = "auto"
+    provider: Optional[str] = None
+    api_key: Optional[str] = None
+
+class TranslateResponse(BaseModel):
+    status: str = "success"
+    translated_text: str
+    target_lang: str
+    source_lang: str
+    engine: Optional[str] = "hybrid"
+
 @router.get("/health", summary="Service health check")
 async def health_check():
     keys_status = LLMService.get_active_keys_status()
@@ -77,6 +91,27 @@ async def test_api_key(payload: TestKeyRequest):
         
     success, msg = LLMService.test_key(payload.provider, payload.api_key)
     return TestKeyResponse(success=success, message=msg)
+
+@router.post("/translate", response_model=TranslateResponse, summary="Translate text into any supported language")
+async def translate_content(payload: TranslateRequest):
+    """Translates text or reports into any target language with LLM and fast engine fallbacks."""
+    if not payload.text.strip():
+        raise HTTPException(status_code=400, detail="Text cannot be empty.")
+    
+    result = LLMService.translate(
+        text=payload.text,
+        target_lang=payload.target_lang,
+        source_lang=payload.source_lang or "auto",
+        provider=payload.provider,
+        api_key=payload.api_key
+    )
+    return TranslateResponse(
+        status="success",
+        translated_text=result["translated_text"],
+        target_lang=result["target_lang"],
+        source_lang=result["source_lang"],
+        engine=result.get("engine", "hybrid")
+    )
 
 @router.post("/feedback", response_model=FeedbackResponse, summary="Submit assessment feedback")
 async def submit_feedback(payload: FeedbackRequest, db: Session = Depends(get_db)):

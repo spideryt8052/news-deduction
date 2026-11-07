@@ -28,7 +28,10 @@ import {
   AlertOctagon,
   AlertTriangle,
   Search,
-  ExternalLink
+  ExternalLink,
+  Download,
+  Languages,
+  Loader2
 } from 'lucide-react';
 import api, { formatApiError } from '../services/api';
 import voiceService, { OMNIVOICE_LANGUAGES } from '../services/voiceService';
@@ -413,6 +416,54 @@ export default function ChatPage() {
     setTimeout(() => setCopiedIdx(null), 2000);
   };
 
+  const handleDownloadMessageAudio = (text, analysisResult = null) => {
+    const textToSpeak = analysisResult 
+      ? voiceService.formatReportScript(analysisResult, voiceLang) 
+      : text;
+    const langKey = (voiceLang || 'en').split('-')[0].toLowerCase();
+    voiceService.downloadAudio(textToSpeak, voiceLang, `truthshield-response-${langKey}.mp3`);
+  };
+
+  const [translatingMsgIdx, setTranslatingMsgIdx] = useState(null);
+
+  const handleTranslateMessage = async (idx, currentContent) => {
+    setTranslatingMsgIdx(idx);
+    try {
+      const targetLang = (voiceLang || 'hi-IN').split('-')[0].toLowerCase();
+      const res = await api.translateText(currentContent, targetLang);
+      if (res && res.translated_text) {
+        setMessages(prev => prev.map((m, mIdx) => {
+          if (mIdx === idx) {
+            return {
+              ...m,
+              originalContent: m.originalContent || m.content,
+              content: res.translated_text,
+              isTranslated: true
+            };
+          }
+          return m;
+        }));
+      }
+    } catch (err) {
+      console.warn('Translate message failed:', err);
+    } finally {
+      setTranslatingMsgIdx(null);
+    }
+  };
+
+  const handleRevertMessage = (idx) => {
+    setMessages(prev => prev.map((m, mIdx) => {
+      if (mIdx === idx && m.originalContent) {
+        return {
+          ...m,
+          content: m.originalContent,
+          isTranslated: false
+        };
+      }
+      return m;
+    }));
+  };
+
   const handleClear = () => {
     voiceService.stopSpeaking();
     claimProcessedRef.current = false;
@@ -646,20 +697,32 @@ export default function ChatPage() {
                         </span>
                       </div>
 
-                      {/* OmniVoice Audio Read-Aloud for this verdict */}
-                      <button
-                        type="button"
-                        onClick={() => handleSpeakMessage(msg.content, idx, ar)}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
-                          isSpeaking && activeSpeakingIdx === idx
-                            ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
-                            : 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/20'
-                        }`}
-                        title="Listen to full spoken verdict report"
-                      >
-                        <Volume2 className="w-3.5 h-3.5" />
-                        <span>{isSpeaking && activeSpeakingIdx === idx ? 'Playing Voice' : 'Listen'}</span>
-                      </button>
+                      {/* OmniVoice Audio Read-Aloud and Download for this verdict */}
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleSpeakMessage(msg.content, idx, ar)}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                            isSpeaking && activeSpeakingIdx === idx
+                              ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
+                              : 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/20'
+                          }`}
+                          title="Listen to full spoken verdict report"
+                        >
+                          <Volume2 className="w-3.5 h-3.5" />
+                          <span>{isSpeaking && activeSpeakingIdx === idx ? 'Playing Voice' : 'Listen'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadMessageAudio(msg.content, ar)}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border bg-cyan-500/10 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/20 transition-all cursor-pointer"
+                          title="Download audio report (MP3)"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">MP3</span>
+                        </button>
+                      </div>
                     </div>
 
                     {/* Origin & Provenance Section ("Kahan Ka Hai" / उत्पत्ति और स्रोत की पड़ताल) */}
@@ -750,6 +813,31 @@ export default function ChatPage() {
                     </span>
 
                     <div className="flex items-center gap-1.5">
+                      {msg.isTranslated && (
+                        <button
+                          type="button"
+                          onClick={() => handleRevertMessage(idx)}
+                          className="text-[10px] text-cyan-400 hover:text-cyan-300 underline mr-1 cursor-pointer"
+                          title="Revert to original text"
+                        >
+                          Show Original
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleTranslateMessage(idx, msg.content)}
+                        disabled={translatingMsgIdx === idx}
+                        className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-cyan-400 transition-colors"
+                        title="Translate message to selected language"
+                      >
+                        {translatingMsgIdx === idx ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                        ) : (
+                          <Languages className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => handleSpeakMessage(msg.content, idx, ar)}
@@ -759,6 +847,15 @@ export default function ChatPage() {
                         title="Listen to this answer"
                       >
                         <Volume2 className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadMessageAudio(msg.content, ar)}
+                        className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-cyan-400 transition-colors"
+                        title="Download Audio (MP3)"
+                      >
+                        <Download className="w-3.5 h-3.5" />
                       </button>
 
                       <button

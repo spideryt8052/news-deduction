@@ -176,6 +176,20 @@ export const api = {
     return res.data;
   },
 
+  // --- Multilingual Translation API ---
+  translateText: async (text, targetLang = 'hi', sourceLang = 'auto') => {
+    const { provider, apiKey } = getStoredAiConfig();
+    const payload = {
+      text,
+      target_lang: targetLang,
+      source_lang: sourceLang,
+      provider: provider && provider !== 'auto' ? provider : undefined,
+      api_key: apiKey || undefined,
+    };
+    const res = await client.post('/api/translate', payload);
+    return res.data;
+  },
+
   // --- Conversational Human-like AI (Gemini / ChatGPT style) ---
   sendChatMessage: async (message, conversationHistory = [], customConfig = {}, language = 'en') => {
     const { provider, apiKey } = getStoredAiConfig();
@@ -279,6 +293,19 @@ export const api = {
     formData.append('lang', lang);
     const res = await client.post('/api/omnivoice/transcribe', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return res.data;
+  },
+
+  // --- Multilingual Translation Engine ---
+  translateText: async (text, targetLang = 'hi', sourceLang = 'auto') => {
+    const { provider, apiKey } = getStoredAiConfig();
+    const res = await client.post('/api/translate', {
+      text,
+      target_lang: targetLang,
+      source_lang: sourceLang,
+      provider: provider && provider !== 'auto' ? provider : undefined,
+      api_key: apiKey || undefined,
     });
     return res.data;
   },

@@ -63,9 +63,9 @@ async def generate_report_audio(payload: OmniVoiceReportRequest):
         synthesis=synthesis
     )
 
-@router.get("/audio", summary="Stream synthesized speech audio MP3")
-async def stream_speech_audio(text: str, lang: str = "hi"):
-    """Streams synthesized speech audio MP3 directly for any human language."""
+@router.get("/audio", summary="Stream or download synthesized speech audio MP3")
+async def stream_speech_audio(text: str, lang: str = "hi", download: bool = False, filename: Optional[str] = None):
+    """Streams synthesized speech audio MP3 directly for any human language, with download support."""
     from fastapi.responses import Response
     if not text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty.")
@@ -74,19 +74,22 @@ async def stream_speech_audio(text: str, lang: str = "hi"):
     if not audio_bytes:
         raise HTTPException(status_code=500, detail="Failed to synthesize speech audio.")
     
+    safe_name = filename or f"truthshield-{lang}-audio.mp3"
+    disposition = f'attachment; filename="{safe_name}"' if download else 'inline; filename="speech.mp3"'
+    
     return Response(
         content=audio_bytes,
         media_type="audio/mpeg",
         headers={
-            "Content-Disposition": 'inline; filename="speech.mp3"',
+            "Content-Disposition": disposition,
             "Accept-Ranges": "bytes",
             "Cache-Control": "public, max-age=86400"
         }
     )
 
 @router.post("/audio", summary="Synthesize speech audio from JSON payload")
-async def generate_speech_audio_post(payload: OmniVoiceSynthesizeRequest):
-    """Streams synthesized speech audio MP3 from JSON body."""
+async def generate_speech_audio_post(payload: OmniVoiceSynthesizeRequest, download: bool = False):
+    """Streams synthesized speech audio MP3 from JSON body with download option."""
     from fastapi.responses import Response
     if not payload.text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty.")
@@ -95,11 +98,13 @@ async def generate_speech_audio_post(payload: OmniVoiceSynthesizeRequest):
     if not audio_bytes:
         raise HTTPException(status_code=500, detail="Failed to synthesize speech audio.")
     
+    disposition = f'attachment; filename="truthshield-{payload.lang_id}-audio.mp3"' if download else 'inline; filename="speech.mp3"'
+    
     return Response(
         content=audio_bytes,
         media_type="audio/mpeg",
         headers={
-            "Content-Disposition": 'inline; filename="speech.mp3"',
+            "Content-Disposition": disposition,
             "Accept-Ranges": "bytes",
             "Cache-Control": "public, max-age=86400"
         }

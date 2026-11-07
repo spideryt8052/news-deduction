@@ -70,17 +70,29 @@ export function toHumanSpeechText(rawText, { maxSentences = null, conversational
 
   // 5. Remove bullet list markers & numbering
   text = text.replace(/^\s*[-*+•►▶▪▫]\s+/gm, '');
-  text = text.replace(/^\s*\d+[\.\)]\s+/gm, '');
+  text = text.replace(/^\s*(\d+)\s*[\.\)]\s+/gm, '$1, ');
 
   // 6. Strip all emojis, pictographs, variation selectors & UI symbols
   text = text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B50}\u{FE00}-\u{FE0F}\u{200D}\u{1F1E6}-\u{1F1FF}]/gu, '');
-  text = text.replace(/[🛡️✓✗⚡✦➜►▶★●■◆▼▲•❌✅⚠️🌐🤖]/g, '');
+  text = text.replace(/[🛡️✓✗⚡✦➜►▶★●■◆▼▲•❌✅⚠️🌐🤖👋🙏👍👎🔥✨🎉💡🔍📌]/g, '');
 
-  // 7. Strip brackets, quotes, slashes, asterisks, and technical chars that TTS reads literally
-  text = text.replace(/[\[\]\(\)\{\}<>|\\\/_~^#*"'`]/g, ' ');
-
-  // 8. Convert % to natural spoken words per language
+  // 7. Fix exclamation mark, colons, hyphens (fixes TTS pronouncing exclamation mark as "dot" or "colon")
   const langKey = (lang || 'en').split('-')[0].toLowerCase();
+  if (langKey === 'hi' || langKey === 'bho' || langKey === 'mai' || langKey === 'ur') {
+    // In Hindi/Urdu, replace exclamation marks with poorna viraam or comma pause so TTS never reads 'dot'
+    text = text.replace(/[!！]+/g, '। ');
+    text = text.replace(/[:;：；]+/g, ', ');
+    text = text.replace(/(\w+)[-—–]+(\w+)/g, '$1 $2');
+    text = text.replace(/[-—–]+/g, ' ');
+  } else {
+    text = text.replace(/[:;]+/g, ', ');
+    text = text.replace(/(\w+)[-—–]+(\w+)/g, '$1 $2');
+  }
+
+  // 8. Strip brackets, quotes, slashes, asterisks, and technical chars that TTS reads literally
+  text = text.replace(/[\[\]\(\)\{\}<>|\\\/_~^#*"'`“”‘’]/g, ' ');
+
+  // 9. Convert % to natural spoken words per language
   if (langKey === 'hi' || langKey === 'bho' || langKey === 'mai') {
     text = text.replace(/(\d+)\s*%/g, '$1 प्रतिशत');
   } else if (langKey === 'ur') {
@@ -103,18 +115,35 @@ export function toHumanSpeechText(rawText, { maxSentences = null, conversational
     text = text.replace(/(\d+)\s*%/g, '$1 percent');
   }
 
-  // 9. Clean standalone symbols, isolated dots, dashes, or colons
+  // 10. Clean standalone symbols, isolated dots, dashes, or colons
   text = text.replace(/(^|\s+)[\.\,\-\:\;\|\/\\]+(\s+|$)/g, ' ');
 
-  // 10. Clean repeated punctuation: "..." -> ".", "!!" -> "!", "??" -> "?"
-  text = text.replace(/\.{2,}/g, '. ');
-  text = text.replace(/!{2,}/g, '! ');
+  // 11. Clean repeated punctuation: "..." -> "। ", "!!" -> "। "
+  text = text.replace(/\.{2,}/g, langKey === 'hi' ? '। ' : '. ');
+  text = text.replace(/!{2,}/g, langKey === 'hi' ? '। ' : '! ');
   text = text.replace(/\?{2,}/g, '? ');
   text = text.replace(/,\s*,/g, ',');
 
-  // 11. Normalize newlines and extra spaces
-  text = text.replace(/[\r\n]+/g, '. ');
+  // 12. Normalize newlines and extra spaces
+  text = text.replace(/[\r\n]+/g, langKey === 'hi' ? '। ' : '. ');
   text = text.replace(/\s{2,}/g, ' ').trim();
+
+  // 13. Deduplicate consecutive repeated sentences
+  const sentenceDelim = /([।\.\?\!\n]+)/;
+  const rawParts = text.split(sentenceDelim);
+  const dedupedParts = [];
+  let prevSentence = "";
+  for (let i = 0; i < rawParts.length; i += 2) {
+    const s = (rawParts[i] || '').trim();
+    const p = rawParts[i + 1] || '';
+    if (!s) continue;
+    const lower = s.toLowerCase();
+    if (lower !== prevSentence) {
+      dedupedParts.push(s + (p ? p : (langKey === 'hi' ? '। ' : '. ')));
+      prevSentence = lower;
+    }
+  }
+  text = dedupedParts.join(' ').replace(/\s{2,}/g, ' ').trim();
 
   // 12. Conversational sentence selection (only if explicitly requested)
   if (conversational && maxSentences && maxSentences > 0) {
@@ -706,6 +735,32 @@ class VoiceService {
     if (this.isSpeechSynthesisSupported() && this.isSpeaking) {
       try { window.speechSynthesis.resume(); } catch (e) {}
     }
+  }
+
+  // -------------------------------------------------------------
+  // Download Audio MP3 (Save to Device)
+  // -------------------------------------------------------------
+  downloadAudio(text, lang = 'hi', customFilename = null) {
+    if (!text || !text.trim()) return;
+    const langKey = (lang || 'hi').split('-')[0].toLowerCase();
+    const cleanText = toHumanSpeechText(text, { conversational: false, lang: langKey });
+    if (!cleanText) return;
+
+    const base = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '') || (import.meta.env.VITE_API_URL || '');
+    const cleanBase = base ? base.replace(/\/$/, '') : '';
+    const safeName = customFilename || `truthshield-${langKey}-speech.mp3`;
+    const audioUrl = `${cleanBase}/api/omnivoice/audio?text=${encodeURIComponent(cleanText)}&lang=${encodeURIComponent(langKey)}&download=true&filename=${encodeURIComponent(safeName)}`;
+
+    const a = document.createElement('a');
+    a.href = audioUrl;
+    a.download = safeName;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      if (document.body.contains(a)) {
+        document.body.removeChild(a);
+      }
+    }, 200);
   }
 
   // -------------------------------------------------------------
