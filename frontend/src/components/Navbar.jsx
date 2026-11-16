@@ -156,18 +156,13 @@ export default function Navbar() {
                 </button>
               </div>
             ) : (
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center">
                 <Link
                   to="/login"
-                  className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white text-xs font-medium border border-slate-800 transition-all"
+                  className="px-4 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs shadow-md shadow-sky-500/20 transition-all flex items-center gap-1.5"
                 >
-                  Sign In
-                </Link>
-                <Link
-                  to="/signup"
-                  className="px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs shadow-md shadow-sky-500/20 transition-all"
-                >
-                  Create Account
+                  <User className="w-3.5 h-3.5" />
+                  <span>Sign In</span>
                 </Link>
               </div>
             )}
@@ -263,18 +258,13 @@ export default function Navbar() {
                 </button>
               </>
             ) : (
-              <div className="grid grid-cols-2 gap-2 pt-1">
+              <div className="pt-1">
                 <Link
                   to="/login"
-                  className="py-2 text-center rounded-xl bg-slate-900 border border-slate-800 text-slate-200 text-sm font-medium"
+                  className="w-full py-2.5 text-center rounded-xl bg-sky-500 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-sky-500/20"
                 >
-                  Sign In
-                </Link>
-                <Link
-                  to="/signup"
-                  className="py-2 text-center rounded-xl bg-sky-500 text-slate-950 font-bold text-sm"
-                >
-                  Create Account
+                  <User className="w-4 h-4" />
+                  <span>Sign In</span>
                 </Link>
               </div>
             )}
