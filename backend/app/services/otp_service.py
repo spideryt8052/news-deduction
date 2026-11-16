@@ -74,15 +74,13 @@ class OtpService:
         email_sent, error_msg = cls._dispatch_email(clean_email, otp, purpose)
 
         if not email_sent:
-            # When cloud hosting (like Render Free Tier) blocks outbound SMTP port 587,
-            # we keep the generated OTP in store so user is NEVER blocked from registration/login!
-            logger.warning(f"⚠️ [TruthShield OTP] SMTP dispatch blocked or failed to {clean_email}: {error_msg}. Providing preview fallback so testing/evaluation never fails.")
+            logger.error(f"❌ [TruthShield OTP] Email dispatch failed to {clean_email}: {error_msg}")
             return {
-                "success": True,
-                "message": f"Security code generated! Cloud host blocked raw SMTP port. For testing/evaluation, your code is: {otp} (or use universal code 123456)",
+                "success": False,
+                "message": f"Could not send verification code to {clean_email}. Please ensure your email is correct and try again.",
                 "email": clean_email,
-                "expires_in_seconds": ttl,
-                "preview_code": otp
+                "expires_in_seconds": 0,
+                "preview_code": None
             }
 
         logger.info(f"📧 [TruthShield OTP] Email successfully delivered to {clean_email} (Purpose: {purpose})")
@@ -265,44 +263,49 @@ class OtpService:
 
     @classmethod
     def _send_smtp_email(cls, to_email: str, subject: str, html_body: str, text_body: str, smtp_user: str, smtp_pass: str) -> Tuple[bool, str]:
-        """Sends rich HTML verification email via standard SMTP socket."""
+        """Sends rich HTML verification email via standard SMTP socket with dual-port fallback (587 & 465)."""
         smtp_host = (getattr(settings, "SMTP_HOST", "") or "smtp.gmail.com").strip()
-        smtp_port = int(getattr(settings, "SMTP_PORT", 587) or 587)
-        sender_from = f"TruthShield Security <{smtp_user}>"
+        configured_port = int(getattr(settings, "SMTP_PORT", 587) or 587)
+        sender_from = getattr(settings, "SMTP_FROM", "") or f"TruthShield Security <{smtp_user}>"
 
-        try:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = sender_from
-            msg["To"] = to_email
-            msg.attach(MIMEText(text_body, "plain"))
-            msg.attach(MIMEText(html_body, "html"))
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = sender_from
+        msg["To"] = to_email
+        msg.attach(MIMEText(text_body, "plain"))
+        msg.attach(MIMEText(html_body, "html"))
+        msg_str = msg.as_string()
 
-            if smtp_port == 465:
-                context = ssl.create_default_context()
-                server = smtplib.SMTP_SSL(smtp_host, smtp_port, context=context, timeout=8)
-                server.login(smtp_user, smtp_pass)
-            else:
-                server = smtplib.SMTP(smtp_host, smtp_port, timeout=8)
-                server.ehlo()
-                server.starttls()
-                server.ehlo()
-                server.login(smtp_user, smtp_pass)
+        # Try configured port first, then alternate standard secure port (587 STARTTLS / 465 SSL)
+        ports_to_try = [configured_port, 465 if configured_port != 465 else 587]
+        last_error = ""
 
-            server.sendmail(smtp_user, [to_email], msg.as_string())
-            server.quit()
-            return True, "Email sent successfully via SMTP"
+        for port in ports_to_try:
+            try:
+                if port == 465:
+                    context = ssl.create_default_context()
+                    server = smtplib.SMTP_SSL(smtp_host, 465, context=context, timeout=8)
+                    server.login(smtp_user, smtp_pass)
+                else:
+                    server = smtplib.SMTP(smtp_host, 587, timeout=8)
+                    server.ehlo()
+                    server.starttls()
+                    server.ehlo()
+                    server.login(smtp_user, smtp_pass)
 
-        except smtplib.SMTPAuthenticationError as auth_err:
-            logger.error(f"Gmail SMTP Auth Error: {auth_err}")
-            return False, (
-                "Google Account Authentication Failed. "
-                "Gmail requires an 'App Password' (16 characters) instead of your regular password. "
-                "Generate one at Google Account -> Security -> 2-Step Verification -> App Passwords."
-            )
-        except Exception as e:
-            logger.error(f"SMTP Dispatch Error: {e}")
-            return False, f"Failed to connect to email server ({str(e)})"
+                server.sendmail(smtp_user, [to_email], msg_str)
+                server.quit()
+                return True, f"Email sent successfully via SMTP (port {port})"
+
+            except smtplib.SMTPAuthenticationError as auth_err:
+                logger.error(f"Gmail SMTP Auth Error: {auth_err}")
+                return False, "Google Account Authentication Failed. Please check SMTP App Password."
+            except Exception as e:
+                last_error = str(e)
+                logger.warning(f"SMTP dispatch on port {port} failed: {e}. Trying alternate port...")
+                continue
+
+        return False, f"Failed to connect to email server ({last_error})"
 
     @classmethod
     def _build_email_templates(cls, to_email: str, otp: str, purpose: str) -> Tuple[str, str, str]:

@@ -68,9 +68,9 @@ class Settings(BaseSettings):
     # SMTP / Gmail Configuration for Real Email OTP Dispatch
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
-    SMTP_USER: str = ""
-    SMTP_PASSWORD: str = ""
-    SMTP_FROM: str = ""
+    SMTP_USER: str = os.getenv("SMTP_USER", "yaseenbrp25@gmail.com")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "giqwbjtxjnkkszii")
+    SMTP_FROM: str = os.getenv("SMTP_FROM", "TruthShield Verification <yaseenbrp25@gmail.com>")
 
     # HTTP-based Email APIs (Critical for Render Free Tier which blocks raw SMTP ports 587/465)
     RESEND_API_KEY: str = ""

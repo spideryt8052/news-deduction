@@ -45,7 +45,6 @@ export default function RegisterPage() {
   // States
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [previewOtp, setPreviewOtp] = useState('');
   const [resendTimer, setResendTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
 
@@ -115,11 +114,7 @@ export default function RegisterPage() {
         setResendTimer(60);
         setCanResend(false);
         setStep(2);
-        if (resp.preview_code) {
-          setPreviewOtp(resp.preview_code);
-          const chars = resp.preview_code.split('');
-          setOtpDigits(chars);
-        }
+        setOtpDigits(['', '', '', '', '', '']);
       } else {
         setError(resp.error || 'Failed to send verification code. Please check your email and try again.');
       }
@@ -216,9 +211,6 @@ export default function RegisterPage() {
     setLoading(false);
 
     if (resp.success) {
-      if (resp.preview_code) {
-        setPreviewOtp(resp.preview_code);
-      }
       setResendTimer(60);
       setCanResend(false);
       setOtpDigits(['', '', '', '', '', '']);
@@ -474,12 +466,6 @@ export default function RegisterPage() {
                 <p className="text-[11px] text-slate-400">
                   A confidential 6-digit code has been delivered to <strong className="text-white">{email}</strong>.
                 </p>
-
-                {previewOtp && (
-                  <div className="mt-2 py-1.5 px-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-mono">
-                    Verification code: <strong>{previewOtp}</strong>
-                  </div>
-                )}
               </div>
 
               {/* 6 Individual OTP Boxes with Auto-focus & Paste */}
