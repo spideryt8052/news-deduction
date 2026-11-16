@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ShieldCheck, Menu, X, Shield, User, LogOut, Sparkles, Languages } from 'lucide-react';
-import api from '../services/api';
+import { ShieldCheck, Menu, X, Shield, User, LogOut, Sparkles, Languages, Key } from 'lucide-react';
+import api, { getStoredAiConfig } from '../services/api';
+import ApiKeyModal from './ApiKeyModal';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [backendStatus, setBackendStatus] = useState('checking'); // 'online' | 'offline' | 'checking'
+  const [showKeyModal, setShowKeyModal] = useState(false);
+  const [aiConfig, setAiConfig] = useState(getStoredAiConfig());
   const location = useLocation();
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
 
@@ -38,7 +41,8 @@ export default function Navbar() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 bg-slate-950/80 border-b border-slate-800/80 backdrop-blur-xl">
+    <>
+      <header className="sticky top-0 z-50 bg-slate-950/80 border-b border-slate-800/80 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
@@ -84,8 +88,24 @@ export default function Navbar() {
           </nav>
 
           {/* Right Action & Status Indicator */}
-          <div className="hidden sm:flex items-center space-x-3">
+          <div className="hidden sm:flex items-center space-x-2.5">
             
+            {/* AI Key Configuration Button */}
+            <button
+              type="button"
+              onClick={() => setShowKeyModal(true)}
+              className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 text-slate-300 hover:text-white transition-all cursor-pointer shadow-sm group"
+              title="Configure AI API Key (Groq, Gemini, OpenAI, Claude, Ollama)"
+            >
+              <Key className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-45 transition-transform" />
+              <span>AI Key</span>
+              {aiConfig?.provider && aiConfig.provider !== 'auto' && (
+                <span className="text-[10px] uppercase font-bold text-sky-400 bg-sky-500/10 px-1.5 py-0.5 rounded border border-sky-500/20">
+                  {aiConfig.provider}
+                </span>
+              )}
+            </button>
+
             {/* Live Status Pill */}
             <div
               className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800"
@@ -155,7 +175,16 @@ export default function Navbar() {
           </div>
 
           {/* Mobile menu button */}
-          <div className="flex md:hidden items-center space-x-2">
+          <div className="flex md:hidden items-center space-x-1.5">
+            <button
+              type="button"
+              onClick={() => setShowKeyModal(true)}
+              className="p-1.5 rounded-xl bg-slate-900 border border-slate-800 text-amber-400 hover:text-amber-300"
+              title="Configure AI API Key"
+            >
+              <Key className="w-4 h-4" />
+            </button>
+
             {isAuthenticated ? (
               <Link
                 to="/user/panel"
@@ -253,5 +282,13 @@ export default function Navbar() {
         </div>
       )}
     </header>
+
+    {/* Global AI API Key Configuration Modal */}
+    <ApiKeyModal
+      isOpen={showKeyModal}
+      onClose={() => setShowKeyModal(false)}
+      onConfigSaved={(cfg) => setAiConfig(cfg)}
+    />
+  </>
   );
 }

@@ -30,12 +30,14 @@ import {
   MessageSquare,
   Search,
   ExternalLink,
-  ChevronDown
+  ChevronDown,
+  Key
 } from 'lucide-react';
-import api, { formatApiError } from '../services/api';
+import api, { formatApiError, getStoredAiConfig } from '../services/api';
 import voiceService, { OMNIVOICE_LANGUAGES } from '../services/voiceService';
 import { CLASSIFICATION_THEMES } from '../utils/constants';
 import { useAuth } from '../context/AuthContext';
+import ApiKeyModal from '../components/ApiKeyModal';
 
 const SUGGESTION_PROMPTS = [
   {
@@ -119,6 +121,8 @@ export default function ChatPage() {
   });
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [dismissedLoginBanner, setDismissedLoginBanner] = useState(false);
+  const [showKeyModal, setShowKeyModal] = useState(false);
+  const [aiConfig, setAiConfig] = useState(getStoredAiConfig());
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -537,12 +541,20 @@ export default function ChatPage() {
               {sidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
             </button>
 
-            {/* Model Badge (Gemini / Claude style pill) */}
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-200">
+            {/* Model Badge & Key Trigger */}
+            <button
+              onClick={() => setShowKeyModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 text-xs font-semibold text-slate-200 transition-all cursor-pointer shadow-sm group"
+              title="Configure AI API Key (Groq, Gemini, OpenAI, Claude, Ollama)"
+            >
               <Sparkles className="w-3.5 h-3.5 text-sky-400" />
               <span>TruthShield Intelligence</span>
               <span className="text-[10px] text-slate-400 font-normal hidden sm:inline">• Gemini 2.5 & Origin</span>
-            </div>
+              <span className="flex items-center gap-1 ml-1 text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full text-[10px] border border-amber-400/20">
+                <Key className="w-2.5 h-2.5" />
+                <span>API Key</span>
+              </span>
+            </button>
           </div>
 
           {/* Right Action Controls: Voice Language & Mute */}
@@ -965,6 +977,13 @@ export default function ChatPage() {
           </div>
         </div>
       )}
+
+      {/* AI Key Configuration Modal */}
+      <ApiKeyModal
+        isOpen={showKeyModal}
+        onClose={() => setShowKeyModal(false)}
+        onConfigSaved={(cfg) => setAiConfig(cfg)}
+      />
 
     </div>
   );

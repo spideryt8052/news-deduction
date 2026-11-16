@@ -15,10 +15,12 @@ import {
   Mic,
   MicOff,
   Globe,
-  Search
+  Search,
+  Key
 } from 'lucide-react';
 import api, { getStoredAiConfig } from '../services/api';
 import voiceService, { OMNIVOICE_LANGUAGES } from '../services/voiceService';
+import ApiKeyModal from './ApiKeyModal';
 
 const SAMPLE_PRESETS = [
   {
@@ -57,6 +59,8 @@ export default function AnalyzeBox({ onAnalysisComplete, initialText = '', compa
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
   const [voiceLang, setVoiceLang] = useState('hi-IN');
+  const [showKeyModal, setShowKeyModal] = useState(false);
+  const [aiConfig, setAiConfig] = useState(getStoredAiConfig());
 
   const fileInputRef = useRef(null);
   const baseTextRef = useRef('');
@@ -522,8 +526,17 @@ export default function AnalyzeBox({ onAnalysisComplete, initialText = '', compa
 
         {/* Quick Sample Presets - Human-Friendly Example Chips */}
         <div className="mt-5 pt-4 border-t border-slate-800/80">
-          <div className="text-xs text-slate-400 mb-2.5 flex items-center gap-1.5 font-medium">
+          <div className="flex items-center justify-between text-xs text-slate-400 mb-2.5 font-medium">
             <span>💡 Try a real-world example:</span>
+            <button
+              type="button"
+              onClick={() => setShowKeyModal(true)}
+              className="text-xs text-slate-400 hover:text-amber-400 flex items-center gap-1.5 transition-colors cursor-pointer group px-2 py-1 rounded-lg hover:bg-slate-800/60"
+              title="Configure AI API Key (Groq, Gemini, OpenAI, Claude, Ollama)"
+            >
+              <Key className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-45 transition-transform" />
+              <span>AI Key Settings</span>
+            </button>
           </div>
           <div className="flex flex-wrap gap-2">
             {SAMPLE_PRESETS.map((preset, idx) => (
@@ -540,6 +553,13 @@ export default function AnalyzeBox({ onAnalysisComplete, initialText = '', compa
         </div>
 
       </div>
+
+      {/* AI Key Configuration Modal */}
+      <ApiKeyModal
+        isOpen={showKeyModal}
+        onClose={() => setShowKeyModal(false)}
+        onConfigSaved={(cfg) => setAiConfig(cfg)}
+      />
     </div>
   );
 }
