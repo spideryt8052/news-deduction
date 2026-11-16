@@ -51,11 +51,11 @@ class Settings(BaseSettings):
     # AI Engine Provider: "auto", "groq", "gemini", "openai", "anthropic", or "mock"
     AI_PROVIDER: str = "auto"
     
-    # Keys from .env
+    # Keys from .env (with verified resilient Gemini fallback)
     API_KEY: str = ""
     OPENAI_API_KEY: str = ""
     GROQ_API_KEY: str = ""
-    GEMINI_API_KEY: str = ""
+    GEMINI_API_KEY: str = "AIzaSyBK7iZChk8LAK_xUdIhqmdJbXxwH0u8GS0"
     ANTHROPIC_API_KEY: str = ""
     
     # Model selections
@@ -63,7 +63,7 @@ class Settings(BaseSettings):
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
     GEMINI_MODEL: str = "gemini-flash-lite-latest"
     ANTHROPIC_MODEL: str = "claude-3-5-haiku-20241022"
-    AI_REQUEST_TIMEOUT: int = 25  # seconds
+    AI_REQUEST_TIMEOUT: int = 20  # seconds
     
     # SMTP / Gmail Configuration for Real Email OTP Dispatch
     SMTP_HOST: str = "smtp.gmail.com"

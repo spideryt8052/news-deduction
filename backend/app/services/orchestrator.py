@@ -60,6 +60,8 @@ class PipelineOrchestrator:
         cls, 
         extracted_text: str, 
         filename: str,
+        image_bytes: Optional[bytes] = None,
+        mime_type: str = "image/jpeg",
         ai_provider: Optional[str] = None,
         api_key: Optional[str] = None
     ) -> AnalysisResultResponse:
@@ -68,11 +70,21 @@ class PipelineOrchestrator:
             result = analyzer.analyze_image(
                 extracted_text=extracted_text, 
                 filename=filename,
+                image_bytes=image_bytes,
+                mime_type=mime_type,
                 ai_provider=ai_provider,
                 api_key=api_key
             )
         except TypeError:
-            result = analyzer.analyze_image(extracted_text=extracted_text, filename=filename)
+            try:
+                result = analyzer.analyze_image(
+                    extracted_text=extracted_text, 
+                    filename=filename,
+                    ai_provider=ai_provider,
+                    api_key=api_key
+                )
+            except TypeError:
+                result = analyzer.analyze_image(extracted_text=extracted_text, filename=filename)
 
         ANALYSIS_CACHE[result.id] = result.model_dump()
         return result

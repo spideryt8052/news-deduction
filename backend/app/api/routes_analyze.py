@@ -135,6 +135,8 @@ async def analyze_image(
     result = PipelineOrchestrator.analyze_image(
         extracted_text=extracted_text,
         filename=file.filename or "screenshot.png",
+        image_bytes=contents,
+        mime_type=file.content_type,
         ai_provider=effective_provider,
         api_key=effective_key
     )

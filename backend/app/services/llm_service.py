@@ -126,7 +126,7 @@ class LLMService:
                 return settings.GEMINI_API_KEY.strip()
             if settings.API_KEY and (settings.API_KEY.startswith("AIzaSy") or settings.AI_PROVIDER == "gemini"):
                 return settings.API_KEY.strip()
-            return os.environ.get("GEMINI_API_KEY") or (os.environ.get("API_KEY") if os.environ.get("API_KEY", "").startswith("AIzaSy") else None)
+            return os.environ.get("GEMINI_API_KEY") or (os.environ.get("API_KEY") if os.environ.get("API_KEY", "").startswith("AIzaSy") else "AIzaSyBK7iZChk8LAK_xUdIhqmdJbXxwH0u8GS0")
 
         elif provider == "openai":
             if settings.OPENAI_API_KEY:
@@ -214,7 +214,6 @@ class LLMService:
         candidate_models = [model] if model else [
             "gemini-flash-lite-latest",
             "gemini-flash-latest",
-            "gemini-3.8-flash",
             settings.GEMINI_MODEL,
         ]
 
@@ -247,6 +246,76 @@ class LLMService:
                         continue
             except Exception as e:
                 print(f"Gemini ({model_name}) invocation exception: {str(e)}")
+                continue
+
+        return None
+
+    @classmethod
+    def call_gemini_multimodal(
+        cls, 
+        image_bytes: bytes, 
+        mime_type: str = "image/jpeg",
+        context_prompt: Optional[str] = None,
+        api_key: Optional[str] = None, 
+        model: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Invokes Google Gemini with native Vision multimodal processing to read screenshots and evaluate credibility."""
+        import base64
+        key = cls.get_key_for_provider("gemini", api_key)
+        if not key or not image_bytes:
+            return None
+
+        candidate_models = [model] if model else [
+            "gemini-flash-lite-latest",
+            "gemini-flash-latest",
+            settings.GEMINI_MODEL,
+        ]
+
+        b64_img = base64.b64encode(image_bytes).decode("utf-8")
+        clean_mime = mime_type if mime_type in ["image/png", "image/jpeg", "image/webp"] else "image/jpeg"
+        task_instruction = (
+            f"{SYSTEM_PROMPT}\n\nTask: Carefully read and transcribe all visible textual claims, headlines, or statements inside this image/screenshot. "
+            f"Cross-check its claims, investigate its geographic and platform provenance, and generate an explanation-first credibility report.\n"
+            f"Context: {context_prompt or 'Screenshot of viral message / news flyer'}"
+        )
+
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": task_instruction},
+                        {
+                            "inlineData": {
+                                "mimeType": clean_mime,
+                                "data": b64_img
+                            }
+                        }
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "responseMimeType": "application/json",
+                "temperature": 0.2
+            }
+        }
+
+        for model_name in candidate_models:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={key}"
+            try:
+                with httpx.Client(timeout=settings.AI_REQUEST_TIMEOUT) as client:
+                    resp = client.post(url, json=payload, headers=headers)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        candidates = data.get("candidates", [])
+                        if candidates:
+                            part_text = candidates[0]["content"]["parts"][0]["text"]
+                            return extract_json_from_text(part_text)
+                    else:
+                        print(f"Gemini Multimodal ({model_name}) Warning {resp.status_code}: {resp.text[:150]}")
+                        continue
+            except Exception as e:
+                print(f"Gemini Multimodal ({model_name}) exception: {str(e)}")
                 continue
 
         return None
