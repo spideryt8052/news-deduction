@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, EmailStr
 class UserRegisterRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=100, description="Full Name of User")
     email: str = Field(..., min_length=5, max_length=255, description="Valid Email Address")
-    password: str = Field(..., min_length=6, max_length=100, description="Password (at least 6 characters)")
+    password: str = Field(..., min_length=4, max_length=100, description="Password (at least 4 characters)")
     role: Optional[str] = Field("user", description="Requested role (default: user)")
 
 class UserLoginRequest(BaseModel):
@@ -60,7 +60,7 @@ class SendOtpResponse(BaseModel):
 class VerifyOtpRegisterRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=100, description="Full Name of User")
     email: str = Field(..., min_length=5, max_length=255, description="Valid Email Address")
-    password: str = Field(..., min_length=6, max_length=100, description="Account Password")
+    password: str = Field(..., min_length=4, max_length=100, description="Account Password")
     otp: str = Field(..., min_length=4, max_length=10, description="6-digit verification code")
     role: Optional[str] = Field("user", description="Requested role")
 

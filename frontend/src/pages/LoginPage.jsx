@@ -262,7 +262,7 @@ export default function LoginPage() {
 
               {/* ---------------- MODE 1: PASSWORD LOGIN ---------------- */}
               {authMode === 'password' && (
-                <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                <form onSubmit={handlePasswordSubmit} autoComplete="off" className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                       Email Address
@@ -273,9 +273,10 @@ export default function LoginPage() {
                       </div>
                       <input
                         type="email"
+                        autoComplete="off"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="you@domain.com"
+                        placeholder="Enter your email"
                         required
                         className="w-full pl-10 pr-4 py-2.5 bg-dark-900/80 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all"
                       />
@@ -304,9 +305,10 @@ export default function LoginPage() {
                       </div>
                       <input
                         type={showPassword ? 'text' : 'password'}
+                        autoComplete="current-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
+                        placeholder="Enter your password"
                         required
                         className="w-full pl-10 pr-10 py-2.5 bg-dark-900/80 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all"
                       />
@@ -357,9 +359,10 @@ export default function LoginPage() {
                           </div>
                           <input
                             type="email"
+                            autoComplete="off"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="you@domain.com"
+                            placeholder="Enter your email"
                             required
                             className="w-full pl-10 pr-4 py-2.5 bg-dark-900/80 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all"
                           />

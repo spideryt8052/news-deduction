@@ -48,11 +48,6 @@ export default function RegisterPage() {
   const [resendTimer, setResendTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
 
-  // Password strength analysis
-  const hasMinLen = password.length >= 8;
-  const hasNumOrSym = /[0-9!@#$%^&*]/.test(password);
-  const passwordsMatch = password && confirmPassword && password === confirmPassword;
-
   // Countdown timer for OTP resend
   useEffect(() => {
     let timer;
@@ -95,8 +90,8 @@ export default function RegisterPage() {
       setError('Please provide a valid email address.');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long.');
+    if (password.length < 4) {
+      setError('Password must be at least 4 characters long.');
       return;
     }
     if (password !== confirmPassword) {
@@ -291,7 +286,7 @@ export default function RegisterPage() {
           {/* STEP 1: ACCOUNT DETAILS INPUT                                */}
           {/* ============================================================ */}
           {step === 1 && (
-            <form onSubmit={handleInitiateVerification} className="space-y-4">
+            <form onSubmit={handleInitiateVerification} autoComplete="off" className="space-y-4">
               
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
@@ -304,9 +299,11 @@ export default function RegisterPage() {
                   </div>
                   <input
                     type="text"
+                    name="register_name"
+                    autoComplete="off"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Yaseen Jamshed"
+                    placeholder="Enter full name"
                     required
                     className="w-full pl-10 pr-4 py-3 bg-dark-900/90 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500 transition-all shadow-inner"
                   />
@@ -324,9 +321,11 @@ export default function RegisterPage() {
                   </div>
                   <input
                     type="email"
+                    name="register_email"
+                    autoComplete="off"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="user@example.com"
+                    placeholder="Enter email address"
                     required
                     className="w-full pl-10 pr-4 py-3 bg-dark-900/90 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500 transition-all shadow-inner"
                   />
@@ -344,9 +343,11 @@ export default function RegisterPage() {
                     </div>
                     <input
                       type={showPassword ? 'text' : 'password'}
+                      name="register_password"
+                      autoComplete="new-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
+                      placeholder="Enter password"
                       required
                       className="w-full pl-10 pr-10 py-3 bg-dark-900/90 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500 transition-all shadow-inner"
                     />
@@ -370,37 +371,17 @@ export default function RegisterPage() {
                     </div>
                     <input
                       type={showPassword ? 'text' : 'password'}
+                      name="register_confirm_password"
+                      autoComplete="new-password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="••••••••"
+                      placeholder="Confirm password"
                       required
                       className="w-full pl-10 pr-4 py-3 bg-dark-900/90 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500 transition-all shadow-inner"
                     />
                   </div>
                 </div>
               </div>
-
-              {/* Password Quality Indicator */}
-              {password && (
-                <div className="p-3 bg-dark-900/60 rounded-xl border border-white/5 space-y-1.5 text-[11px]">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${hasMinLen ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                    <span className={hasMinLen ? 'text-emerald-300' : 'text-slate-400'}>At least 8 characters</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${hasNumOrSym ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                    <span className={hasNumOrSym ? 'text-emerald-300' : 'text-slate-400'}>Includes number or symbol</span>
-                  </div>
-                  {confirmPassword && (
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${passwordsMatch ? 'bg-emerald-400' : 'bg-rose-500'}`} />
-                      <span className={passwordsMatch ? 'text-emerald-300' : 'text-rose-400'}>
-                        {passwordsMatch ? 'Passwords match' : 'Passwords do not match yet'}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Security Pill */}
               <div className="flex items-center gap-2 py-2 px-3 rounded-xl bg-cyan-950/40 border border-cyan-500/20 text-cyan-300/90 text-xs">
