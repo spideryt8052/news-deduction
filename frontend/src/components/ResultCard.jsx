@@ -422,6 +422,26 @@ Reality: ${displayRecommendation}`;
           </p>
         </div>
 
+        {/* Multi-Source Web Synthesis & Final Conclusion Banner */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-sky-950/40 via-dark-900/90 to-blue-950/40 border border-sky-500/40 space-y-2 mb-6 shadow-xl">
+          <div className="flex items-center justify-between border-b border-sky-500/20 pb-2 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <div className="p-1 rounded-lg bg-sky-500/20 text-sky-400">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <h4 className="text-xs uppercase tracking-wider font-bold text-sky-300">
+                Final Conclusion & Synthesis (निष्कर्ष और अंतिम पड़ताल)
+              </h4>
+            </div>
+            <span className="text-[10px] uppercase px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/40 font-semibold">
+              Cross-Checked Across Live Web
+            </span>
+          </div>
+          <p className="text-sm sm:text-base font-medium text-slate-100 leading-relaxed pt-1">
+            {displaySummary || theme.description}
+          </p>
+        </div>
+
         {/* Origin & Provenance Investigation Section ("Kahan Ka Hai" / उत्पत्ति और स्रोत की पड़ताल) */}
         {origin_info && (
           <div className="p-5 rounded-2xl bg-gradient-to-r from-cyan-950/40 via-dark-900/80 to-indigo-950/40 border border-cyan-500/30 space-y-3 mb-6 shadow-xl">
@@ -519,9 +539,15 @@ Reality: ${displayRecommendation}`;
         {/* Evidence Grid */}
         {evidence && evidence.length > 0 && (
           <div className="space-y-3 mb-6">
-            <h4 className="text-xs uppercase tracking-wider font-semibold text-slate-300">
-              Gathered Evidence & Context ({evidence.length})
-            </h4>
+            <div className="flex items-center justify-between border-b border-white/10 pb-2 flex-wrap gap-2">
+              <h4 className="text-xs uppercase tracking-wider font-semibold text-slate-300 flex items-center gap-1.5">
+                <Globe className="w-4 h-4 text-cyan-400" />
+                <span>Live Sources Checked Across the Web ({evidence.length})</span>
+              </h4>
+              <span className="text-[10px] text-cyan-400 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/20 font-medium">
+                Clickable Source Links Included
+              </span>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {evidence.map((item, idx) => (
                 <EvidenceCard key={idx} item={item} />
