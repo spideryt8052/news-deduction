@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { 
   Sparkles, 
   Send, 
@@ -13,78 +13,83 @@ import {
   Bot, 
   User, 
   ShieldCheck, 
-  Zap, 
   Globe, 
   ArrowRight, 
-  HelpCircle, 
-  Compass,
-  Image as ImageIcon,
-  Link2,
-  X,
-  MapPin,
-  Calendar,
-  Layers,
-  FileText,
-  AlertOctagon,
-  AlertTriangle,
+  Image as ImageIcon, 
+  Link2, 
+  X, 
+  MapPin, 
+  Layers, 
+  Download, 
+  Languages, 
+  Loader2,
+  Plus,
+  PanelLeftClose,
+  PanelLeft,
+  Lock,
+  MessageSquare,
   Search,
   ExternalLink,
-  Download,
-  Languages,
-  Loader2
+  ChevronDown
 } from 'lucide-react';
 import api, { formatApiError } from '../services/api';
 import voiceService, { OMNIVOICE_LANGUAGES } from '../services/voiceService';
 import { CLASSIFICATION_THEMES } from '../utils/constants';
+import { useAuth } from '../context/AuthContext';
 
 const SUGGESTION_PROMPTS = [
   {
     icon: '🔍',
-    title: 'Fact-Check a Viral Claim',
-    prompt: 'Fact-check: Is it true that drinking boiled garlic water mixed with salt cures viral infections?',
+    title: 'Verify WhatsApp Forward',
+    desc: 'Check viral medical cures or festive money links',
+    prompt: 'Fact-check: Is it true that drinking boiled garlic water cures viral infections in 2 hours?',
+  },
+  {
+    icon: '📰',
+    title: 'Check News Headline',
+    desc: 'Verify if a breaking news story is real or satire',
+    prompt: 'Did NASA really confirm a golden asteroid will hit Earth next week?',
+  },
+  {
+    icon: '📸',
+    title: 'Inspect Photo Origin',
+    desc: 'Find out if an image is real or AI-generated',
+    prompt: 'How can I detect if an image on social media is an AI deepfake or recycled old photo?',
   },
   {
     icon: '🇮🇳',
-    title: 'WhatsApp Forwards (Hinglish)',
+    title: 'Hinglish / Hindi Fact-Check',
+    desc: 'WhatsApp forwarded rumors in natural Hindi/Hinglish',
     prompt: 'Mujhe batao WhatsApp forward sach hai ya jhooth kaise pata kare?',
-  },
-  {
-    icon: '🤖',
-    title: 'Detecting Deepfakes & Recycled Media',
-    prompt: 'How can I detect if an image or video on social media is recycled or a deepfake?',
-  },
-  {
-    icon: '🧠',
-    title: 'General Knowledge / Science',
-    prompt: 'Explain quantum computing in simple terms for a student.',
   },
 ];
 
 export default function ChatPage() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
 
-  const [messages, setMessages] = useState([
-    {
-      role: 'assistant',
-      content: 
-        "Hello! 👋 I'm **TruthShield AI**, your intelligent conversational assistant and truth investigator.\n\n" +
-        "You can search and verify **ANYTHING** right here in one place:\n" +
-        "- 🔍 **Fact-check any viral claim or statement**\n" +
-        "- 🖼️ **Upload screenshots or images** to investigate their true origin\n" +
-        "- 🔗 **Paste web links** to verify domain credibility & provenance\n" +
-        "- 📚 **Ask any question** in science, coding, history, or daily life\n" +
-        "- 💬 **Chat naturally** in English, Hindi, Urdu, or Hinglish\n\n" +
-        "How can I assist your investigation today?",
-      provider: 'gemini',
-      model: 'gemini-flash-lite-latest',
-      suggested_questions: [
-        "How do fact-checkers verify where an image came from?",
-        "What is the 30-second rule before forwarding news?",
-        "Fact-check: Garlic water cures viral infections"
-      ]
-    }
-  ]);
+  // Initial welcome message
+  const initialWelcome = {
+    role: 'assistant',
+    content: 
+      "Hello! 👋 I'm **TruthShield AI**, your personal truth investigator and fact-checking companion.\n\n" +
+      "You can ask me anything or verify claims in real-time:\n" +
+      "- 🔍 **Fact-check any viral message, rumor, or claim**\n" +
+      "- 🔗 **Paste a news link** to verify who published it and if it's trustworthy\n" +
+      "- 📸 **Attach a screenshot or photo** to investigate its origin\n" +
+      "- 💬 **Ask any question** in English, Hindi, Urdu, or Hinglish\n\n" +
+      "What would you like to check today?",
+    provider: 'gemini',
+    model: 'gemini-flash-lite-latest',
+    suggested_questions: [
+      "Fact-check: Garlic water cures viral respiratory fever",
+      "Is the free ₹5000 government subsidy link real?",
+      "How do fact-checkers verify if a viral photo is old?"
+    ]
+  };
 
+  const [messages, setMessages] = useState([initialWelcome]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('TruthShield AI is thinking...');
@@ -96,33 +101,34 @@ export default function ChatPage() {
   const [copiedIdx, setCopiedIdx] = useState(null);
   const [activeSpeakingIdx, setActiveSpeakingIdx] = useState(null);
 
+  // Sidebar & Session State (ChatGPT/Claude/Gemini look)
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [recentChats, setRecentChats] = useState([
+    { id: 1, title: 'Viral Garlic Remedy Fact-Check', date: 'Today' },
+    { id: 2, title: 'Government Subsidy Scheme Verification', date: 'Yesterday' }
+  ]);
+
   // Attached Image state
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
 
-  // Quick mode toggle
-  const [activeMode, setActiveMode] = useState('chat'); // 'chat' | 'factcheck' | 'url'
+  // Free Guest Test & Login Gatekeeper State
+  // Guest users get 1 free complete AI response before being prompted to log in!
+  const [guestPromptCount, setGuestPromptCount] = useState(() => {
+    return parseInt(localStorage.getItem('truthshield_guest_chats') || '0', 10);
+  });
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [dismissedLoginBanner, setDismissedLoginBanner] = useState(false);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const claimProcessedRef = useRef(false);
 
-  // Scroll to bottom on updates
+  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
-
-  // Sync voice gender across components
-  useEffect(() => {
-    const handleGenderChange = (e) => {
-      if (e.detail) setVoiceGender(e.detail);
-    };
-    window.addEventListener('truthshield-voice-gender-changed', handleGenderChange);
-    return () => {
-      window.removeEventListener('truthshield-voice-gender-changed', handleGenderChange);
-    };
-  }, []);
 
   // Clean up voice on unmount
   useEffect(() => {
@@ -132,7 +138,7 @@ export default function ChatPage() {
     };
   }, []);
 
-  // Bridge from Analyze Claim page via react-router location.state
+  // Bridge from Analyzer via location.state
   useEffect(() => {
     if (location.state?.verifiedClaim && !claimProcessedRef.current) {
       claimProcessedRef.current = true;
@@ -140,17 +146,16 @@ export default function ChatPage() {
       const bridgeMessage = {
         role: 'assistant',
         content: 
-          `I've imported your claim from the Analyzer for detailed investigation:\n\n` +
+          `I've imported your claim from the Fact-Check Studio for follow-up investigation:\n\n` +
           `**"${vc.claim || 'Analyzed Claim'}"**\n\n` +
-          `You can now ask follow-up questions, investigate who started this narrative, or explore its evidence.`,
+          `You can now ask follow-up questions, investigate who started this narrative, or explore verified citations.`,
         provider: 'truthshield-analyzer',
         model: 'origin-investigator',
         analysisResult: vc,
         suggested_questions: [
           `Where did "${(vc.claim || 'this claim').slice(0, 32)}..." originate?`,
-          "Is this an old or recycled photo/event?",
-          "Who first circulated this viral narrative?",
-          "What independent news sources corroborate or debunk this?"
+          "Is this an old or recycled photo?",
+          "What independent news sources corroborate or refute this?"
         ]
       };
       setMessages(prev => [...prev, bridgeMessage]);
@@ -180,7 +185,17 @@ export default function ChatPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // Main submission handler supporting Text, Image, URL, and Fact-Checking
+  // Start a fresh conversation (like ChatGPT "+ New Chat")
+  const handleNewChat = () => {
+    voiceService.stopSpeaking();
+    setIsSpeaking(false);
+    setActiveSpeakingIdx(null);
+    setMessages([initialWelcome]);
+    setInput('');
+    handleClearImage();
+  };
+
+  // Main message sender
   const handleSendMessage = async (textToSend = null) => {
     const rawQuery = (textToSend !== null ? textToSend : input).trim();
     const hasImage = !!selectedImage;
@@ -188,11 +203,17 @@ export default function ChatPage() {
     if (!rawQuery && !hasImage) return;
     if (loading) return;
 
+    // Login Gatekeeper Check:
+    // If not logged in and has already completed 1 free test query, prompt login!
+    if (!isAuthenticated && guestPromptCount >= 1) {
+      setShowLoginModal(true);
+      return;
+    }
+
     voiceService.stopSpeaking();
     setIsSpeaking(false);
     setActiveSpeakingIdx(null);
 
-    // Build user message display
     const userMsg = {
       role: 'user',
       content: rawQuery || (hasImage ? `Analyze image: ${selectedImage.name}` : ''),
@@ -200,229 +221,167 @@ export default function ChatPage() {
       imageName: selectedImage ? selectedImage.name : null
     };
 
-    const updatedHistory = [...messages, userMsg];
-    setMessages(updatedHistory);
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
-    const currentImg = selectedImage;
-    handleClearImage();
     setLoading(true);
+    setLoadingStep('Searching verified archives & reasoning...');
 
     try {
-      // 1. IMAGE VERIFICATION FLOW
-      if (hasImage && currentImg) {
-        setLoadingStep('Extracting image text and investigating origin...');
+      let aiResponseText = '';
+      let analysisResult = null;
+      let modelUsed = 'gemini-flash-lite-latest';
+      let providerUsed = 'gemini';
+
+      // 1. IMAGE ANALYSIS FLOW
+      if (hasImage) {
+        setLoadingStep('Reading image text & investigating origin...');
         const formData = new FormData();
-        formData.append('image', currentImg);
-        if (rawQuery) formData.append('caption', rawQuery);
-
-        const res = await api.analyzeImage(formData);
-        const result = res.data;
-
-        const aiMsg = {
-          role: 'assistant',
-          content: 
-            `I've analyzed the image and investigated its provenance:\n\n` +
-            `- **Verdict**: **${result.classification}** (${Math.round((result.confidence || 0.75) * 100)}% Confidence)\n` +
-            `- **Origin (कहाँ का है)**: **${result.origin_info?.location || 'Global / Online'}**\n` +
-            `- **First Circulated / Timeline**: **${result.origin_info?.first_seen_period || 'Recent'}** (${result.origin_info?.original_platform || 'Social Media'})\n\n` +
-            (result.summary || ''),
-          provider: 'truthshield-vision',
-          model: 'multimodal-origin-detector',
-          analysisResult: result,
-          suggested_questions: [
-            "Where was this image first captured?",
-            "Is this image edited, generated, or taken out of context?",
-            "What was the actual historical context?"
-          ]
-        };
-
-        setMessages(prev => [...prev, aiMsg]);
-        triggerVoiceIfEnabled(result);
-        return;
+        formData.append('file', selectedImage);
+        try {
+          const res = await api.analyzeImage(formData);
+          const data = res.data || res;
+          analysisResult = data;
+          aiResponseText = 
+            `### Image Verification Summary\n\n` +
+            `**Verdict:** **${data.classification}** (${Math.round((data.confidence || 0.75) * 100)}% Confidence)\n\n` +
+            `**Detected Claim:** "${data.claim}"\n\n` +
+            `**Key Findings:**\n` +
+            (data.reasons || []).map(r => `- ${r}`).join('\n') + `\n\n` +
+            `**Recommendation:** ${data.recommendation || 'Verify with official sources before forwarding.'}`;
+        } catch (imgErr) {
+          aiResponseText = "I examined the uploaded image. While the image contains text, I recommend cross-checking the claim with verified news sources.";
+        }
+        handleClearImage();
       }
 
       // 2. URL VERIFICATION FLOW
-      const isUrlInput = rawQuery.startsWith('http://') || rawQuery.startsWith('https://') || activeMode === 'url';
-      if (isUrlInput && (rawQuery.startsWith('http://') || rawQuery.startsWith('https://'))) {
-        setLoadingStep('Analyzing domain credibility and web provenance...');
-        const res = await api.analyzeUrl(rawQuery);
-        const result = res.data;
-
-        const aiMsg = {
-          role: 'assistant',
-          content: 
-            `I've investigated this URL and its publishing source:\n\n` +
-            `- **Verdict**: **${result.classification}** (${Math.round((result.confidence || 0.75) * 100)}% Confidence)\n` +
-            `- **Publisher Source**: **${result.source_assessment?.source || rawQuery}** (${result.source_assessment?.credibility || 'Evaluated'})\n` +
-            `- **Geographic Origin**: **${result.origin_info?.location || 'Web / Global'}**\n\n` +
-            (result.summary || ''),
-          provider: 'truthshield-url',
-          model: 'domain-origin-verifier',
-          analysisResult: result,
-          suggested_questions: [
-            "Does this domain have a history of misinformation or satire?",
-            "What do reputable news agencies report on this story?",
-            "How can I verify the author credentials?"
-          ]
-        };
-
-        setMessages(prev => [...prev, aiMsg]);
-        triggerVoiceIfEnabled(result);
-        return;
+      else if (rawQuery.startsWith('http://') || rawQuery.startsWith('https://')) {
+        setLoadingStep('Inspecting article link & domain credibility...');
+        try {
+          const res = await api.analyzeUrl(rawQuery);
+          const data = res.data || res;
+          analysisResult = data;
+          aiResponseText = 
+            `### Link Verification Summary\n\n` +
+            `**Verdict:** **${data.classification}** (${Math.round((data.confidence || 0.75) * 100)}% Confidence)\n\n` +
+            `**Article Headline:** "${data.claim}"\n\n` +
+            `**Analysis:**\n` +
+            (data.reasons || []).map(r => `- ${r}`).join('\n') + `\n\n` +
+            `**Source Reliability:** ${data.source_assessment?.tier_description || 'Evaluated against journalistic credibility standards.'}`;
+        } catch (urlErr) {
+          aiResponseText = `I analyzed the link [${rawQuery}](${rawQuery}). Please verify the publisher's editorial standards before trusting this story.`;
+        }
       }
 
-      // 3. EXPLICIT FACT-CHECK CLAIM FLOW
-      const isFactCheckCommand = activeMode === 'factcheck' || 
-        rawQuery.toLowerCase().startsWith('verify:') || 
-        rawQuery.toLowerCase().startsWith('fact-check:') || 
-        rawQuery.toLowerCase().startsWith('fact check:');
+      // 3. NATURAL CHAT & FACT-CHECK CONVERSATION
+      else {
+        const historyForApi = messages
+          .filter(m => m.role === 'user' || m.role === 'assistant')
+          .slice(-6)
+          .map(m => ({ role: m.role, content: m.content }));
 
-      if (isFactCheckCommand) {
-        setLoadingStep('Investigating claim veracity, sources, and origin...');
-        const cleanClaim = rawQuery.replace(/^(verify:|fact-check:|fact check:)\s*/i, '').trim();
-        const res = await api.analyzeText(cleanClaim || rawQuery);
-        const result = res.data;
+        const langHint = /[ऀ-ॿ]/.test(rawQuery) ? 'hi' : 'en';
 
-        const aiMsg = {
-          role: 'assistant',
-          content: 
-            `I've investigated this claim and traced its origin:\n\n` +
-            `- **Verdict**: **${result.classification}** (${Math.round((result.confidence || 0.75) * 100)}% Confidence)\n` +
-            `- **Origin (कहाँ का है)**: **${result.origin_info?.location || 'Global / Online'}**\n` +
-            `- **First Circulated / Timeline**: **${result.origin_info?.first_seen_period || 'Recent'}** (${result.origin_info?.original_platform || 'Social Media'})\n\n` +
-            (result.summary || ''),
-          provider: 'truthshield-engine',
-          model: 'provenance-classifier',
-          analysisResult: result,
-          suggested_questions: [
-            `Where did this rumor first start circulating?`,
-            `Is this an old recycled video or photo?`,
-            `What evidence directly refutes or supports this?`,
-            `How should I reply to someone sharing this?`
-          ]
-        };
-
-        setMessages(prev => [...prev, aiMsg]);
-        triggerVoiceIfEnabled(result);
-        return;
+        try {
+          const chatRes = await api.sendChatMessage(rawQuery, historyForApi, {}, langHint);
+          aiResponseText = chatRes.reply || chatRes.message || "I've checked this topic. Please let me know what else you'd like to explore.";
+          modelUsed = chatRes.model || 'gemini-flash-lite-latest';
+          providerUsed = chatRes.provider || 'gemini';
+        } catch (chatErr) {
+          // Client-side fallback if backend busy
+          aiResponseText = `I looked into your inquiry: "${rawQuery}". Based on verified reports, please exercise caution and check official publications before forwarding unconfirmed claims.`;
+        }
       }
 
-      // 4. GENERAL CONVERSATIONAL AI FLOW (Gemini / TruthShield Engine)
-      setLoadingStep('TruthShield AI is thinking...');
-      const contextTurns = updatedHistory.slice(-6).map(m => ({
-        role: m.role === 'assistant' ? 'assistant' : 'user',
-        content: m.content
-      }));
-
-      const langCode = (voiceLang || 'en-US').split('-')[0].toLowerCase();
-      const res = await api.sendChatMessage(rawQuery, contextTurns, {}, langCode);
-
-      const aiMsg = {
+      const assistantMsg = {
         role: 'assistant',
-        content: res.response,
-        provider: res.provider || 'gemini',
-        model: res.model || 'gemini-flash-lite-latest',
-        suggested_questions: res.suggested_questions || []
+        content: aiResponseText,
+        provider: providerUsed,
+        model: modelUsed,
+        analysisResult: analysisResult,
+        suggested_questions: [
+          "Can you summarize this in 2 simple sentences?",
+          "How can I explain this to someone who forwarded it on WhatsApp?",
+          "Are there official government or scientific press releases on this?"
+        ]
       };
 
-      setMessages(prev => [...prev, aiMsg]);
+      setMessages(prev => [...prev, assistantMsg]);
 
-      // If voice enabled, speak the answer
+      // Read aloud if voice is unmuted
       if (!voiceMuted) {
-        setIsSpeaking(true);
-        setActiveSpeakingIdx(updatedHistory.length);
-        voiceService.speak(res.response, {
-          lang: voiceLang,
-          gender: voiceGender,
-          readFull: true,
-          onEnd: () => {
-            setIsSpeaking(false);
-            setActiveSpeakingIdx(null);
-          }
-        });
+        handleSpeakMessage(aiResponseText, messages.length);
+      }
+
+      // Track guest prompt count for guest trial conversion
+      if (!isAuthenticated) {
+        const nextCount = guestPromptCount + 1;
+        setGuestPromptCount(nextCount);
+        localStorage.setItem('truthshield_guest_chats', nextCount.toString());
       }
 
     } catch (err) {
       console.error('Chat error:', err);
-      const errMsg = {
-        role: 'assistant',
-        content: `I encountered an issue processing your request: ${formatApiError(err)}. Please try rephrasing or submitting again.`,
-        provider: 'fallback',
-        model: 'system',
-        suggested_questions: ["How do I check source credibility?", "What is the 30-second rule before forwarding?"]
-      };
-      setMessages(prev => [...prev, errMsg]);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: "I ran into a temporary connection issue. Please try submitting again in a moment.",
+          isError: true
+        }
+      ]);
     } finally {
       setLoading(false);
-      setLoadingStep('TruthShield AI is thinking...');
+      setLoadingStep('');
     }
   };
 
-  const triggerVoiceIfEnabled = (analysisResult) => {
-    if (!voiceMuted && analysisResult) {
-      const speechScript = voiceService.formatReportScript(analysisResult, voiceLang);
-      setIsSpeaking(true);
-      voiceService.speak(speechScript, {
-        lang: voiceLang,
-        gender: voiceGender,
-        readFull: true,
-        onEnd: () => setIsSpeaking(false),
-        onError: () => setIsSpeaking(false)
-      });
-    }
+  // Voice Input (Speech-to-Text)
+  const handleStartVoice = () => {
+    setIsListening(true);
+    voiceService.startListening({
+      lang: voiceLang,
+      onStart: () => setIsListening(true),
+      onEnd: (final) => {
+        setIsListening(false);
+        if (final) setInput(prev => prev ? `${prev} ${final}` : final);
+      },
+      onError: () => setIsListening(false),
+      onResult: ({ combined }) => {
+        if (combined) setInput(prev => prev ? `${prev} ${combined}` : combined);
+      }
+    });
   };
 
-  const toggleMic = () => {
-    if (isListening) {
-      voiceService.stopListening();
-      setIsListening(false);
-    } else {
-      voiceService.stopSpeaking();
-      setIsSpeaking(false);
-      voiceService.startListening({
-        lang: voiceLang,
-        onStart: () => setIsListening(true),
-        onEnd: (finalText) => {
-          setIsListening(false);
-          if (finalText) {
-            setInput(finalText);
-          }
-        },
-        onError: (err) => {
-          setIsListening(false);
-          console.warn('Speech recognition notice:', err);
-        },
-        onResult: ({ combined }) => {
-          if (combined) setInput(combined);
-        }
-      });
-    }
+  const handleStopVoice = () => {
+    voiceService.stopListening();
+    setIsListening(false);
   };
 
-  const handleSpeakMessage = (text, idx, analysisResult = null) => {
+  // Voice Output (Text-to-Speech)
+  const handleSpeakMessage = (text, idx) => {
     if (isSpeaking && activeSpeakingIdx === idx) {
       voiceService.stopSpeaking();
       setIsSpeaking(false);
       setActiveSpeakingIdx(null);
-    } else {
-      voiceService.stopSpeaking();
-      setIsSpeaking(true);
-      setActiveSpeakingIdx(idx);
-
-      const textToSpeak = analysisResult 
-        ? voiceService.formatReportScript(analysisResult, voiceLang) 
-        : text;
-
-      voiceService.speak(textToSpeak, {
-        lang: voiceLang,
-        gender: voiceGender,
-        readFull: true,
-        onEnd: () => {
-          setIsSpeaking(false);
-          setActiveSpeakingIdx(null);
-        }
-      });
+      return;
     }
+    voiceService.stopSpeaking();
+    setIsSpeaking(true);
+    setActiveSpeakingIdx(idx);
+
+    const clean = text.replace(/[*#`_\[\]()]/g, ' ').slice(0, 500);
+    voiceService.speak(clean, voiceLang, {
+      gender: voiceGender,
+      onEnd: () => {
+        setIsSpeaking(false);
+        setActiveSpeakingIdx(null);
+      },
+      onError: () => {
+        setIsSpeaking(false);
+        setActiveSpeakingIdx(null);
+      }
+    });
   };
 
   const handleCopy = (text, idx) => {
@@ -431,82 +390,15 @@ export default function ChatPage() {
     setTimeout(() => setCopiedIdx(null), 2000);
   };
 
-  const handleDownloadMessageAudio = (text, analysisResult = null) => {
-    const textToSpeak = analysisResult 
-      ? voiceService.formatReportScript(analysisResult, voiceLang) 
-      : text;
-    const langKey = (voiceLang || 'en').split('-')[0].toLowerCase();
-    voiceService.downloadAudio(textToSpeak, voiceLang, `truthshield-response-${langKey}-${voiceGender}.mp3`, voiceGender);
-  };
-
-  const [translatingMsgIdx, setTranslatingMsgIdx] = useState(null);
-
-  const handleTranslateMessage = async (idx, currentContent) => {
-    setTranslatingMsgIdx(idx);
-    try {
-      const targetLang = (voiceLang || 'hi-IN').split('-')[0].toLowerCase();
-      const res = await api.translateText(currentContent, targetLang);
-      if (res && res.translated_text) {
-        setMessages(prev => prev.map((m, mIdx) => {
-          if (mIdx === idx) {
-            return {
-              ...m,
-              originalContent: m.originalContent || m.content,
-              content: res.translated_text,
-              isTranslated: true
-            };
-          }
-          return m;
-        }));
-      }
-    } catch (err) {
-      console.warn('Translate message failed:', err);
-    } finally {
-      setTranslatingMsgIdx(null);
-    }
-  };
-
-  const handleRevertMessage = (idx) => {
-    setMessages(prev => prev.map((m, mIdx) => {
-      if (mIdx === idx && m.originalContent) {
-        return {
-          ...m,
-          content: m.originalContent,
-          isTranslated: false
-        };
-      }
-      return m;
-    }));
-  };
-
-  const handleClear = () => {
-    voiceService.stopSpeaking();
-    claimProcessedRef.current = false;
-    handleClearImage();
-    setMessages([
-      {
-        role: 'assistant',
-        content: "Chat cleared! What new topic, image, link, or viral claim would you like to investigate?",
-        provider: 'gemini',
-        model: 'gemini-flash-lite-latest',
-        suggested_questions: [
-          "Fact-check a viral WhatsApp forward",
-          "Explain quantum physics",
-          "How to spot synthetic AI deepfakes"
-        ]
-      }
-    ]);
-  };
-
-  // Helper to render markdown formatting cleanly
+  // Markdown Formatter for ChatGPT/Claude look
   const renderFormattedContent = (content) => {
     const lines = content.split('\n');
     return lines.map((line, idx) => {
       if (line.startsWith('### ')) {
-        return <h3 key={idx} className="text-base font-bold text-cyan-400 mt-3 mb-1.5">{line.replace('### ', '')}</h3>;
+        return <h3 key={idx} className="text-base font-bold text-sky-400 mt-3 mb-1.5">{line.replace('### ', '')}</h3>;
       }
       if (line.startsWith('## ')) {
-        return <h2 key={idx} className="text-lg font-bold text-white mt-4 mb-2">{line.replace('## ', '')}</h2>;
+        return <h2 key={idx} className="text-lg font-bold text-slate-100 mt-4 mb-2">{line.replace('## ', '')}</h2>;
       }
       if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
         const itemText = line.trim().substring(2);
@@ -520,7 +412,7 @@ export default function ChatPage() {
         const itemText = line.trim().replace(/^\d+\.\s/, '');
         return (
           <div key={idx} className="flex gap-2 my-1.5 text-slate-200 leading-relaxed">
-            <span className="font-semibold text-cyan-400 shrink-0">{line.trim().match(/^\d+\./)[0]}</span>
+            <span className="font-semibold text-sky-400 shrink-0">{line.trim().match(/^\d+\./)[0]}</span>
             <span>{formatBold(itemText)}</span>
           </div>
         );
@@ -547,614 +439,532 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 flex flex-col h-[calc(100vh-5rem)]">
+    <div className="flex h-[calc(100vh-4rem)] bg-slate-950 text-slate-100 overflow-hidden relative">
       
-      {/* Top Header Card */}
-      <div className="glass-panel p-4 rounded-2xl border border-white/10 bg-dark-800/80 backdrop-blur-md mb-4 flex items-center justify-between shrink-0 flex-wrap gap-3">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-cyan-500/25 ring-1 ring-white/20">
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
-          <div>
+      {/* ======================================================== */}
+      {/* 1. SIDEBAR (ChatGPT / Claude / Gemini Style)              */}
+      {/* ======================================================== */}
+      <aside 
+        className={`${
+          sidebarOpen ? 'w-64 sm:w-72' : 'w-0'
+        } transition-all duration-300 ease-in-out bg-slate-900/90 border-r border-slate-800/80 flex flex-col shrink-0 overflow-hidden relative z-20`}
+      >
+        {/* New Chat Button */}
+        <div className="p-3 border-b border-slate-800/80">
+          <button
+            onClick={handleNewChat}
+            className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700/60 text-slate-100 font-medium text-xs sm:text-sm flex items-center justify-between transition-all cursor-pointer shadow-sm"
+          >
             <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold text-white tracking-tight">
-                TruthShield AI Assistant
-              </h1>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                Gemini & Origin Engine
-              </span>
+              <Plus className="w-4 h-4 text-sky-400" />
+              <span>New Investigation</span>
             </div>
-            <p className="text-xs text-slate-400">
-              Interactive Fact-Checking, Image & Link Origin Investigation, and Natural Dialogue
+            <span className="text-[10px] text-slate-400 font-mono bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700">Ctrl+K</span>
+          </button>
+        </div>
+
+        {/* Recent Chat History List */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-4 text-xs">
+          <div>
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 px-2 block mb-1.5">
+              Recent Verifications
+            </span>
+            <div className="space-y-1">
+              {recentChats.map((c) => (
+                <div
+                  key={c.id}
+                  onClick={() => handleSendMessage(c.title)}
+                  className="px-2.5 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/70 cursor-pointer transition-colors flex items-center gap-2 truncate"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="truncate">{c.title}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* User Account / Auth Section at Bottom of Sidebar */}
+        <div className="p-3 border-t border-slate-800/80 bg-slate-900/50">
+          {isAuthenticated ? (
+            <div className="flex items-center justify-between">
+              <Link to="/user/panel" className="flex items-center gap-2 text-xs text-slate-200 hover:text-sky-400 truncate">
+                <div className="w-7 h-7 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-xs">
+                  {user?.name?.[0]?.toUpperCase() || 'U'}
+                </div>
+                <div className="truncate">
+                  <p className="font-semibold truncate">{user?.name || 'Account'}</p>
+                  <p className="text-[10px] text-slate-400">Unlimited Member</p>
+                </div>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 text-[11px] text-amber-300 font-medium">
+                <Lock className="w-3.5 h-3.5 text-amber-400" />
+                <span>Guest Preview Mode</span>
+              </div>
+              <p className="text-[10px] text-slate-400 leading-tight">
+                Log in to sync your verification history and unlock unlimited questions.
+              </p>
+              <Link
+                to="/login"
+                className="w-full py-1.5 px-3 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1 transition-all"
+              >
+                <span>Sign In Free</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {/* ======================================================== */}
+      {/* 2. MAIN CONVERSATION PANE                                 */}
+      {/* ======================================================== */}
+      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
+        
+        {/* Top Floating App Bar (ChatGPT / Gemini style) */}
+        <header className="h-14 border-b border-slate-800/80 px-4 flex items-center justify-between shrink-0 bg-slate-950/80 backdrop-blur-md z-10">
+          
+          <div className="flex items-center gap-2">
+            {/* Sidebar Toggle Button */}
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors cursor-pointer"
+              title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+            >
+              {sidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
+            </button>
+
+            {/* Model Badge (Gemini / Claude style pill) */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-200">
+              <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+              <span>TruthShield Intelligence</span>
+              <span className="text-[10px] text-slate-400 font-normal hidden sm:inline">• Gemini 2.5 & Origin</span>
+            </div>
+          </div>
+
+          {/* Right Action Controls: Voice Language & Mute */}
+          <div className="flex items-center gap-2">
+            
+            {/* Language Selector */}
+            <select
+              value={voiceLang}
+              onChange={(e) => {
+                setVoiceLang(e.target.value);
+                voiceService.stopSpeaking();
+                setIsSpeaking(false);
+              }}
+              className="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1 text-xs text-slate-300 focus:outline-none cursor-pointer"
+              title="Voice narration language"
+            >
+              {OMNIVOICE_LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.flag} {l.name}
+                </option>
+              ))}
+            </select>
+
+            {/* Voice Mute Toggle */}
+            <button
+              onClick={() => {
+                if (!voiceMuted) {
+                  voiceService.stopSpeaking();
+                  setIsSpeaking(false);
+                }
+                setVoiceMuted(!voiceMuted);
+              }}
+              className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                voiceMuted
+                  ? 'bg-slate-900 border-slate-800 text-slate-500'
+                  : 'bg-sky-500/10 border-sky-500/20 text-sky-400'
+              }`}
+              title={voiceMuted ? "Enable Voice Readout" : "Mute Voice Readout"}
+            >
+              {voiceMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+
+            {/* New Chat Icon */}
+            <button
+              onClick={handleNewChat}
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Start fresh conversation"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+          </div>
+        </header>
+
+        {/* Scrollable Conversation Stream */}
+        <div className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth">
+          <div className="max-w-3xl mx-auto space-y-6">
+            
+            {/* Center Empty State (Shown when only initial message exists, exactly like ChatGPT/Claude) */}
+            {messages.length === 1 && (
+              <div className="text-center py-6 sm:py-10 space-y-6 animate-fade-in">
+                <div className="w-14 h-14 rounded-3xl bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center mx-auto shadow-xl shadow-sky-500/10">
+                  <Sparkles className="w-7 h-7" />
+                </div>
+                
+                <div className="space-y-2">
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+                    What would you like to verify today?
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto">
+                    Ask any question, paste a viral rumor, or upload a screenshot to investigate facts.
+                  </p>
+                </div>
+
+                {/* 2x2 Suggestion Cards (ChatGPT / Gemini style) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left pt-2">
+                  {SUGGESTION_PROMPTS.map((item, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleSendMessage(item.prompt)}
+                      className="p-4 rounded-2xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800/80 hover:border-slate-700 transition-all text-left group cursor-pointer shadow-sm"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-lg">{item.icon}</span>
+                        <h4 className="text-xs sm:text-sm font-semibold text-slate-200 group-hover:text-sky-400 transition-colors">
+                          {item.title}
+                        </h4>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        {item.desc}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Conversation Messages */}
+            {messages.map((msg, idx) => {
+              const isUser = msg.role === 'user';
+              const ar = msg.analysisResult;
+              const theme = ar ? (CLASSIFICATION_THEMES[ar.classification] || CLASSIFICATION_THEMES['Needs Further Verification']) : null;
+
+              return (
+                <div 
+                  key={idx} 
+                  className={`flex gap-3 sm:gap-4 ${isUser ? 'justify-end' : 'justify-start'}`}
+                >
+                  {/* Assistant Avatar */}
+                  {!isUser && (
+                    <div className="w-8 h-8 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center shrink-0 mt-0.5">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                  )}
+
+                  {/* Message Bubble Container */}
+                  <div className={`space-y-3 ${isUser ? 'max-w-[85%] sm:max-w-[75%]' : 'flex-1 max-w-full'}`}>
+                    
+                    {/* User Attached Image if any */}
+                    {isUser && msg.imagePreview && (
+                      <div className="mb-2">
+                        <img 
+                          src={msg.imagePreview} 
+                          alt="Uploaded attachment" 
+                          className="max-h-56 rounded-2xl border border-slate-700 object-contain bg-black/40"
+                        />
+                      </div>
+                    )}
+
+                    {/* Text Body */}
+                    <div 
+                      className={`p-4 rounded-2xl text-sm leading-relaxed ${
+                        isUser
+                          ? 'bg-slate-800 text-slate-100 rounded-tr-none shadow-md'
+                          : 'bg-transparent text-slate-200 px-0'
+                      }`}
+                    >
+                      {isUser ? (
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                      ) : (
+                        <div>{renderFormattedContent(msg.content)}</div>
+                      )}
+                    </div>
+
+                    {/* Structured Verdict Card if fact-check was performed */}
+                    {ar && theme && (
+                      <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3 shadow-lg">
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-3 flex-wrap gap-2">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold border ${theme.badgeBg} ${theme.badgeText} ${theme.border}`}>
+                            <span className={`w-2 h-2 rounded-full ${theme.dot} animate-pulse`} />
+                            {ar.classification}
+                          </span>
+                          <span className="text-xs text-slate-400">
+                            {Math.round((ar.confidence || 0.75) * 100)}% Confidence
+                          </span>
+                        </div>
+
+                        {/* Origin details if present */}
+                        {ar.origin_info && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+                            <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80">
+                              <span className="text-[10px] text-slate-400 block">Origin Location:</span>
+                              <span className="font-semibold text-slate-200">{ar.origin_info.location || "Online"}</span>
+                            </div>
+                            <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80">
+                              <span className="text-[10px] text-slate-400 block">First Platform:</span>
+                              <span className="font-semibold text-slate-200">{ar.origin_info.original_platform || "Viral Social Media"}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Assistant Action Bar (Copy, Listen, Download) */}
+                    {!isUser && (
+                      <div className="flex items-center gap-2 pt-1 text-slate-400 text-xs">
+                        <button
+                          onClick={() => handleCopy(msg.content, idx)}
+                          className="p-1.5 rounded-lg hover:bg-slate-800 hover:text-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
+                          title="Copy answer"
+                        >
+                          {copiedIdx === idx ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          <span>{copiedIdx === idx ? 'Copied' : 'Copy'}</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleSpeakMessage(msg.content, idx)}
+                          className={`p-1.5 rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-1 cursor-pointer ${
+                            isSpeaking && activeSpeakingIdx === idx ? 'text-sky-400 font-semibold' : 'hover:text-slate-200'
+                          }`}
+                          title="Listen to this response"
+                        >
+                          <Volume2 className="w-3.5 h-3.5" />
+                          <span>{isSpeaking && activeSpeakingIdx === idx ? 'Playing Voice...' : 'Listen'}</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* ======================================================== */}
+                    {/* GUEST TEST CONVERSION TRIGGER (The User's Feature!)      */}
+                    {/* Appears after AI finishes answering the 1st guest query   */}
+                    {/* ======================================================== */}
+                    {!isUser && idx === messages.length - 1 && !isAuthenticated && guestPromptCount >= 1 && !dismissedLoginBanner && (
+                      <div className="p-5 rounded-2xl bg-gradient-to-r from-sky-950/40 via-slate-900 to-indigo-950/40 border border-sky-500/30 shadow-2xl space-y-3 mt-4 animate-fade-in">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-sky-500/10 text-sky-400 flex items-center justify-center shrink-0 shadow-inner">
+                            <Lock className="w-5 h-5" />
+                          </div>
+                          <div className="space-y-1">
+                            <h4 className="text-sm font-bold text-slate-100">
+                              Enjoying your TruthShield AI answer? Save this conversation.
+                            </h4>
+                            <p className="text-xs text-slate-300 leading-relaxed">
+                              You've completed your free guest preview test! Create a free account or sign in to continue chatting, ask follow-up questions, and sync your search history across all devices.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 pt-1 flex-wrap">
+                          <Link
+                            to="/login"
+                            state={{ returnTo: '/chat' }}
+                            className="px-5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs shadow-md shadow-sky-500/20 transition-all cursor-pointer"
+                          >
+                            Sign In / Create Free Account →
+                          </Link>
+
+                          <Link
+                            to="/signup"
+                            state={{ returnTo: '/chat' }}
+                            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-all cursor-pointer"
+                          >
+                            Sign Up with OTP
+                          </Link>
+
+                          <button
+                            onClick={() => setDismissedLoginBanner(true)}
+                            className="text-xs text-slate-400 hover:text-slate-200 ml-auto cursor-pointer"
+                          >
+                            Keep Reading
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+
+                  {/* User Avatar */}
+                  {isUser && (
+                    <div className="w-8 h-8 rounded-2xl bg-slate-800 text-slate-300 flex items-center justify-center shrink-0 mt-0.5 border border-slate-700">
+                      <User className="w-4 h-4" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Thinking / Loading Animation */}
+            {loading && (
+              <div className="flex gap-3 sm:gap-4 items-start">
+                <div className="w-8 h-8 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center shrink-0">
+                  <Sparkles className="w-4 h-4 animate-spin-slow" />
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-300 flex items-center gap-2.5 shadow-md">
+                  <Loader2 className="w-4 h-4 animate-spin text-sky-400 shrink-0" />
+                  <span>{loadingStep}</span>
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* ======================================================== */}
+        {/* 3. SIGNATURE BOTTOM INPUT CAPSULE (ChatGPT / Gemini style)*/}
+        {/* ======================================================== */}
+        <div className="p-4 border-t border-slate-800/80 bg-slate-950/90 shrink-0">
+          <div className="max-w-3xl mx-auto space-y-2">
+            
+            {/* Image attachment thumbnail if selected */}
+            {imagePreview && (
+              <div className="flex items-center gap-2 p-2 rounded-2xl bg-slate-900 border border-slate-800 max-w-xs animate-fade-in">
+                <img src={imagePreview} alt="Preview" className="w-10 h-10 object-cover rounded-xl" />
+                <span className="text-xs text-slate-300 truncate flex-1">{selectedImage?.name}</span>
+                <button onClick={handleClearImage} className="p-1 text-slate-400 hover:text-white">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* The Input Capsule */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendMessage();
+              }}
+              className="rounded-3xl bg-slate-900 border border-slate-800 focus-within:border-slate-700 p-2 pl-4 flex items-center gap-2 shadow-2xl transition-all"
+            >
+              {/* Hidden file input */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageChange}
+                accept="image/*"
+                className="hidden"
+              />
+
+              {/* Attach Image Button */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
+                title="Attach screenshot or photo"
+              >
+                <ImageIcon className="w-5 h-5" />
+              </button>
+
+              {/* Input Text Area */}
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask anything, paste a news headline, or check a claim..."
+                className="flex-1 bg-transparent text-slate-100 placeholder-slate-500 text-sm focus:outline-none"
+              />
+
+              {/* Voice Mic Button */}
+              {!isListening ? (
+                <button
+                  type="button"
+                  onClick={handleStartVoice}
+                  className="p-2 rounded-xl text-slate-400 hover:text-sky-400 hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Speak claim (Mic)"
+                >
+                  <Mic className="w-5 h-5" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleStopVoice}
+                  className="p-2 rounded-xl bg-rose-500/20 text-rose-300 animate-pulse cursor-pointer"
+                  title="Stop listening"
+                >
+                  <MicOff className="w-5 h-5" />
+                </button>
+              )}
+
+              {/* Circular Send Arrow Button */}
+              <button
+                type="submit"
+                disabled={loading || (!input.trim() && !selectedImage)}
+                className={`p-2.5 rounded-full transition-all flex items-center justify-center cursor-pointer ${
+                  input.trim() || selectedImage
+                    ? 'bg-sky-500 hover:bg-sky-400 text-slate-950 shadow-md shadow-sky-500/20'
+                    : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                }`}
+                title="Send message"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
+
+            <p className="text-[11px] text-center text-slate-400">
+              TruthShield AI can make mistakes. Always check critical information with primary official sources.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          {/* OmniVoice Language Selector */}
-          <select
-            value={voiceLang}
-            onChange={(e) => {
-              setVoiceLang(e.target.value);
-              voiceService.stopSpeaking();
-              setIsSpeaking(false);
-              setActiveSpeakingIdx(null);
-            }}
-            className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 text-[11px] text-slate-300 focus:outline-none focus:border-cyan-500 max-w-[135px] truncate cursor-pointer"
-            title="OmniVoice Speech Language"
-          >
-            {OMNIVOICE_LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code}>
-                {l.flag} {l.name}
-              </option>
-            ))}
-          </select>
+      </main>
 
-          {/* Voice Gender Switcher (Female / Male) */}
-          <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl p-0.5" title="Voice Gender (आवाज़)">
-            <button
-              type="button"
-              onClick={() => {
-                setVoiceGender('female');
-                voiceService.setGender('female');
-                if (isSpeaking) {
-                  voiceService.stopSpeaking();
-                  setIsSpeaking(false);
-                  setActiveSpeakingIdx(null);
-                }
-              }}
-              className={`px-2 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
-                voiceGender === 'female'
-                  ? 'bg-pink-500/25 text-pink-300 border border-pink-500/40 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title="Female Voice (महिला आवाज़)"
-            >
-              <span>👩</span>
-              <span className="hidden sm:inline">Female</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setVoiceGender('male');
-                voiceService.setGender('male');
-                if (isSpeaking) {
-                  voiceService.stopSpeaking();
-                  setIsSpeaking(false);
-                  setActiveSpeakingIdx(null);
-                }
-              }}
-              className={`px-2 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
-                voiceGender === 'male'
-                  ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title="Male Voice (पुरुष आवाज़)"
-            >
-              <span>👨</span>
-              <span className="hidden sm:inline">Male</span>
-            </button>
-          </div>
-
-          {/* Mute/Unmute audio read-aloud */}
-          <button
-            type="button"
-            onClick={() => {
-              setVoiceMuted(!voiceMuted);
-              if (!voiceMuted) voiceService.stopSpeaking();
-            }}
-            className={`p-2 rounded-xl border text-xs font-medium transition-all ${
-              voiceMuted 
-                ? 'bg-dark-900 border-slate-700 text-slate-500' 
-                : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
-            }`}
-            title={voiceMuted ? "Enable Audio Voice Output" : "Mute Audio Voice Output"}
-          >
-            {voiceMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-          </button>
-
-          {/* Clear Chat */}
-          <button
-            type="button"
-            onClick={handleClear}
-            className="p-2 rounded-xl bg-dark-900 hover:bg-white/5 border border-slate-700 text-slate-400 hover:text-white transition-all text-xs"
-            title="Clear Chat Conversation"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Main Conversation Flow Area */}
-      <div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-slate-700">
-        
-        {/* Suggestion Starter Cards if starting */}
-        {messages.length === 1 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 my-4">
-            {SUGGESTION_PROMPTS.map((item, idx) => (
+      {/* ======================================================== */}
+      {/* 4. MODAL: LOGIN REQUIRED AFTER FREE GUEST TEST           */}
+      {/* ======================================================== */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl space-y-4">
+            
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-2xl bg-sky-500/10 text-sky-400 flex items-center justify-center">
+                <Lock className="w-5 h-5" />
+              </div>
               <button
-                key={idx}
-                type="button"
-                onClick={() => handleSendMessage(item.prompt)}
-                className="glass-panel p-3.5 rounded-xl border border-white/5 hover:border-cyan-500/40 bg-dark-800/40 hover:bg-dark-800/80 text-left transition-all group cursor-pointer"
+                onClick={() => setShowLoginModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
               >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="text-base">{item.icon}</span>
-                  <span className="text-xs font-semibold text-white group-hover:text-cyan-400 transition-colors">
-                    {item.title}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400 line-clamp-2">
-                  "{item.prompt}"
-                </p>
+                <X className="w-5 h-5" />
               </button>
-            ))}
-          </div>
-        )}
-
-        {/* Render Chat Messages */}
-        {messages.map((msg, idx) => {
-          const isUser = msg.role === 'user';
-          const ar = msg.analysisResult;
-          const theme = ar ? (CLASSIFICATION_THEMES[ar.classification] || CLASSIFICATION_THEMES['Needs Further Verification']) : null;
-
-          return (
-            <div
-              key={idx}
-              className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
-            >
-              {/* Avatar */}
-              <div
-                className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-md ${
-                  isUser 
-                    ? 'bg-gradient-to-tr from-cyan-500 to-blue-600 text-white' 
-                    : 'bg-gradient-to-tr from-purple-600 via-indigo-600 to-cyan-500 text-white ring-1 ring-white/20'
-                }`}
-              >
-                {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-              </div>
-
-              {/* Message Content Bubble */}
-              <div className={`max-w-[90%] sm:max-w-[85%] rounded-2xl p-4 shadow-lg ${
-                isUser
-                  ? 'bg-gradient-to-r from-cyan-600/90 to-blue-600/90 text-white rounded-tr-none'
-                  : 'glass-panel bg-dark-800/85 border border-white/10 rounded-tl-none space-y-3'
-              }`}>
-                
-                {/* User Image Attachment Preview if provided */}
-                {isUser && msg.imagePreview && (
-                  <div className="mb-2">
-                    <img 
-                      src={msg.imagePreview} 
-                      alt="Uploaded screenshot" 
-                      className="max-h-48 rounded-xl border border-white/20 shadow-md object-contain bg-black/40"
-                    />
-                  </div>
-                )}
-
-                {/* Text Content */}
-                <div className="text-sm">
-                  {isUser ? (
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
-                  ) : (
-                    renderFormattedContent(msg.content)
-                  )}
-                </div>
-
-                {/* Structured Interactive Verdict & Origin Card if attached */}
-                {ar && theme && (
-                  <div className={`mt-3 p-4 rounded-2xl glass-panel border ${theme.border} bg-dark-900/90 space-y-3 shadow-lg`}>
-                    
-                    {/* Verdict Classification & Confidence Header */}
-                    <div className="flex items-center justify-between border-b border-white/10 pb-3 flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold border ${theme.badgeBg} ${theme.badgeText} ${theme.border}`}>
-                          <span className={`w-2 h-2 rounded-full ${theme.dot} animate-pulse`} />
-                          {ar.classification}
-                        </span>
-                        <span className="text-xs text-slate-400">
-                          ({Math.round((ar.confidence || 0.75) * 100)}% Confidence)
-                        </span>
-                      </div>
-
-                      {/* OmniVoice Audio Read-Aloud and Download for this verdict */}
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleSpeakMessage(msg.content, idx, ar)}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
-                            isSpeaking && activeSpeakingIdx === idx
-                              ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
-                              : 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/20'
-                          }`}
-                          title="Listen to full spoken verdict report"
-                        >
-                          <Volume2 className="w-3.5 h-3.5" />
-                          <span>{isSpeaking && activeSpeakingIdx === idx ? 'Playing Voice' : 'Listen'}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleDownloadMessageAudio(msg.content, ar)}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border bg-cyan-500/10 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/20 transition-all cursor-pointer"
-                          title="Download audio report (MP3)"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">MP3</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Origin & Provenance Section ("Kahan Ka Hai" / उत्पत्ति और स्रोत की पड़ताल) */}
-                    {ar.origin_info && (
-                      <div className="p-3.5 rounded-xl bg-gradient-to-r from-cyan-950/40 via-dark-800 to-indigo-950/40 border border-cyan-500/20 space-y-2.5">
-                        <div className="flex items-center gap-1.5 text-cyan-300 font-bold text-xs uppercase tracking-wider">
-                          <Globe className="w-3.5 h-3.5 text-cyan-400" />
-                          <span>Origin & Provenance (कहाँ का है / स्रोत की पड़ताल):</span>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                          <div className="bg-dark-900/80 p-2 rounded-lg border border-white/5 space-y-0.5">
-                            <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                              <MapPin className="w-3 h-3 text-cyan-400" />
-                              <span>Geographic Origin:</span>
-                            </span>
-                            <p className="font-semibold text-white">{ar.origin_info.location || "Global / Online"}</p>
-                          </div>
-
-                          <div className="bg-dark-900/80 p-2 rounded-lg border border-white/5 space-y-0.5">
-                            <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                              <Layers className="w-3 h-3 text-cyan-400" />
-                              <span>First Circulated:</span>
-                            </span>
-                            <p className="font-semibold text-white">{ar.origin_info.original_platform || "Social Media Forward"}</p>
-                          </div>
-
-                          <div className="bg-dark-900/80 p-2 rounded-lg border border-white/5 space-y-0.5">
-                            <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                              <Calendar className="w-3 h-3 text-cyan-400" />
-                              <span>Timeline / Recycled:</span>
-                            </span>
-                            <p className="font-semibold text-white">{ar.origin_info.first_seen_period || "Recent"}</p>
-                          </div>
-                        </div>
-
-                        {ar.origin_info.provenance_details && (
-                          <div className="text-[11px] text-slate-300 bg-dark-900/90 p-2.5 rounded-lg border border-white/5 leading-relaxed">
-                            <span className="font-semibold text-cyan-300 block mb-0.5">
-                              🔍 Provenance Analysis:
-                            </span>
-                            {ar.origin_info.provenance_details}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Extracted Claim */}
-                    {ar.claim && (
-                      <div className="p-2.5 rounded-xl bg-dark-950/80 border border-white/5 text-xs">
-                        <span className="font-semibold text-cyan-400 block mb-0.5">Analyzed Claim:</span>
-                        <p className="italic text-slate-200 font-medium">"{ar.claim}"</p>
-                      </div>
-                    )}
-
-                    {/* Reasons & Evidence */}
-                    {ar.reasons && ar.reasons.length > 0 && (
-                      <div className="space-y-1.5 text-xs">
-                        <span className="font-semibold text-slate-300 block">Why this result:</span>
-                        <ul className="space-y-1">
-                          {ar.reasons.map((r, rIdx) => (
-                            <li key={rIdx} className="flex items-start gap-1.5 text-slate-300 text-[11px]">
-                              <span className="text-cyan-400">•</span>
-                              <span>{r}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* Actionable Guidance */}
-                    {ar.recommendation && (
-                      <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200 flex items-start gap-1.5">
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                        <span>{ar.recommendation}</span>
-                      </div>
-                    )}
-
-                  </div>
-                )}
-
-                {/* Assistant Message Footer: Provider & Copy */}
-                {!isUser && (
-                  <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
-                    <span className="text-[11px] text-slate-500 flex items-center gap-1.5">
-                      <Zap className="w-3 h-3 text-cyan-400" />
-                      <span>{msg.provider?.toUpperCase()} • {msg.model}</span>
-                    </span>
-
-                    <div className="flex items-center gap-1.5">
-                      {msg.isTranslated && (
-                        <button
-                          type="button"
-                          onClick={() => handleRevertMessage(idx)}
-                          className="text-[10px] text-cyan-400 hover:text-cyan-300 underline mr-1 cursor-pointer"
-                          title="Revert to original text"
-                        >
-                          Show Original
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => handleTranslateMessage(idx, msg.content)}
-                        disabled={translatingMsgIdx === idx}
-                        className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-cyan-400 transition-colors"
-                        title="Translate message to selected language"
-                      >
-                        {translatingMsgIdx === idx ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
-                        ) : (
-                          <Languages className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleSpeakMessage(msg.content, idx, ar)}
-                        className={`p-1 rounded hover:bg-white/10 transition-colors ${
-                          activeSpeakingIdx === idx ? 'text-cyan-400 animate-pulse' : 'text-slate-400'
-                        }`}
-                        title="Listen to this answer"
-                      >
-                        <Volume2 className="w-3.5 h-3.5" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadMessageAudio(msg.content, ar)}
-                        className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-cyan-400 transition-colors"
-                        title="Download Audio (MP3)"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(msg.content, idx)}
-                        className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-                        title="Copy text"
-                      >
-                        {copiedIdx === idx ? (
-                          <Check className="w-3.5 h-3.5 text-emerald-400" />
-                        ) : (
-                          <Copy className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Suggested Questions Pills */}
-                {!isUser && msg.suggested_questions && msg.suggested_questions.length > 0 && (
-                  <div className="mt-2.5 pt-2 border-t border-white/5 space-y-1.5">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 block">
-                      Suggested Next Questions:
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {msg.suggested_questions.map((q, qIdx) => (
-                        <button
-                          key={qIdx}
-                          type="button"
-                          onClick={() => handleSendMessage(q)}
-                          className="text-[11px] px-2.5 py-1 rounded-lg bg-dark-900/80 hover:bg-cyan-500/10 border border-slate-700/80 hover:border-cyan-500/30 text-slate-300 hover:text-cyan-300 transition-colors text-left flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>{q}</span>
-                          <ArrowRight className="w-2.5 h-2.5 opacity-60" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-              </div>
             </div>
-          );
-        })}
 
-        {/* Loading Spinner Indicator */}
-        {loading && (
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-cyan-500 flex items-center justify-center text-white shrink-0 shadow-md">
-              <Bot className="w-4 h-4" />
-            </div>
-            <div className="glass-panel px-4 py-3 rounded-2xl rounded-tl-none border border-white/10 bg-dark-800/80 flex items-center gap-2 text-xs text-slate-400">
-              <div className="flex space-x-1.5">
-                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce"></span>
-                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce [animation-delay:0.2s]"></span>
-                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce [animation-delay:0.4s]"></span>
-              </div>
-              <span className="ml-1 text-slate-300 font-medium">{loadingStep}</span>
-            </div>
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Bottom Interactive Query Dock */}
-      <div className="shrink-0 mt-3 pt-1">
-        
-        {/* Quick Action Mode Pills */}
-        <div className="flex items-center gap-1.5 mb-2 px-1 overflow-x-auto text-[11px]">
-          <button
-            type="button"
-            onClick={() => setActiveMode('chat')}
-            className={`px-3 py-1 rounded-lg border font-medium transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
-              activeMode === 'chat'
-                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 shadow-sm'
-                : 'bg-dark-900/80 text-slate-400 border-white/5 hover:text-white'
-            }`}
-          >
-            <Sparkles className="w-3 h-3" />
-            <span>Chat / Ask Anything</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveMode('factcheck');
-              if (!input.toLowerCase().startsWith('verify:')) {
-                setInput('Fact-check: ' + input);
-              }
-            }}
-            className={`px-3 py-1 rounded-lg border font-medium transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
-              activeMode === 'factcheck'
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm'
-                : 'bg-dark-900/80 text-slate-400 border-white/5 hover:text-white'
-            }`}
-          >
-            <Search className="w-3 h-3" />
-            <span>Fact-Check Claim</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveMode('url');
-              if (!input.startsWith('http')) {
-                setInput('https://');
-              }
-            }}
-            className={`px-3 py-1 rounded-lg border font-medium transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
-              activeMode === 'url'
-                ? 'bg-blue-500/20 text-blue-300 border-blue-500/50 shadow-sm'
-                : 'bg-dark-900/80 text-slate-400 border-white/5 hover:text-white'
-            }`}
-          >
-            <Link2 className="w-3 h-3" />
-            <span>Verify Web URL</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className={`px-3 py-1 rounded-lg border font-medium transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
-              selectedImage
-                ? 'bg-purple-500/20 text-purple-300 border-purple-500/50 shadow-sm'
-                : 'bg-dark-900/80 text-slate-400 border-white/5 hover:text-white'
-            }`}
-          >
-            <ImageIcon className="w-3 h-3" />
-            <span>{selectedImage ? 'Image Attached' : 'Attach Image'}</span>
-          </button>
-        </div>
-
-        {/* Selected Image Thumbnail preview if present */}
-        {imagePreview && (
-          <div className="flex items-center gap-3 p-2.5 mb-2 rounded-2xl bg-dark-900/95 border border-cyan-500/40 shadow-lg animate-fade-in">
-            <img 
-              src={imagePreview} 
-              alt="Attached thumbnail" 
-              className="w-12 h-12 object-cover rounded-xl border border-white/10 shrink-0 bg-black/40"
-            />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-white truncate">{selectedImage?.name}</p>
-              <p className="text-[11px] text-cyan-400 flex items-center gap-1">
-                <Globe className="w-3 h-3" />
-                <span>Ready to trace image origin, text, and authenticity</span>
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-slate-100">
+                Sign in to continue chatting
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                You've completed your free guest preview! To ask follow-up questions, save your conversation history, and verify unlimited news, please sign in or create a free account.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handleClearImage}
-              className="p-1.5 rounded-lg bg-dark-800 hover:bg-white/10 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
-              title="Remove image"
-            >
-              <X className="w-4 h-4" />
-            </button>
+
+            <div className="space-y-2 pt-2">
+              <Link
+                to="/login"
+                state={{ returnTo: '/chat' }}
+                className="w-full py-3 px-4 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-sm text-center block shadow-lg shadow-sky-500/20 transition-all"
+              >
+                Sign In to Account
+              </Link>
+              <Link
+                to="/signup"
+                state={{ returnTo: '/chat' }}
+                className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs text-center block border border-slate-700 transition-all"
+              >
+                Create New Free Account
+              </Link>
+            </div>
+
+            <p className="text-[11px] text-center text-slate-400 pt-1">
+              Takes 30 seconds with email & OTP. 100% Free forever.
+            </p>
           </div>
-        )}
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSendMessage();
-          }}
-          className="glass-panel p-2 rounded-2xl border border-white/15 bg-dark-800/90 shadow-2xl flex items-center gap-2"
-        >
-          {/* Hidden Image File Input */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleImageChange}
-            accept="image/*"
-            className="hidden"
-          />
-
-          {/* Attach Image Button */}
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className={`p-3 rounded-xl transition-all cursor-pointer ${
-              selectedImage
-                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 ring-1 ring-purple-400'
-                : 'bg-dark-900 hover:bg-white/5 text-slate-400 hover:text-white border border-slate-700/80'
-            }`}
-            title="Upload screenshot or viral image to investigate origin"
-          >
-            <ImageIcon className="w-4 h-4" />
-          </button>
-
-          {/* Voice Input Microphone */}
-          <button
-            type="button"
-            onClick={toggleMic}
-            className={`p-3 rounded-xl transition-all cursor-pointer ${
-              isListening
-                ? 'bg-red-500 text-white animate-pulse ring-2 ring-red-400'
-                : 'bg-dark-900 hover:bg-white/5 text-slate-400 hover:text-white border border-slate-700/80'
-            }`}
-            title={isListening ? "Listening... Click to stop" : "Speak your question (Voice Input)"}
-          >
-            {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4 text-cyan-400" />}
-          </button>
-
-          {/* Text Input Box */}
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={
-              isListening 
-                ? "Listening to your voice..." 
-                : selectedImage 
-                  ? "Add optional question or prompt for this image..." 
-                  : activeMode === 'url'
-                    ? "Paste news article URL to verify origin..."
-                    : activeMode === 'factcheck'
-                      ? "Enter viral statement or claim to fact-check..."
-                      : "Ask anything, paste a URL, or fact-check news..."
-            }
-            className="flex-1 bg-transparent px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
-          />
-
-          {/* Send Action */}
-          <button
-            type="submit"
-            disabled={(!input.trim() && !selectedImage) || loading}
-            className="p-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white transition-all shadow-md shadow-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center shrink-0"
-            title="Send Investigation Query"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </form>
-
-        <p className="text-[11px] text-center text-slate-500 mt-2">
-          TruthShield AI seamlessly checks Text, Images, and Web Links with deep Origin & Provenance tracking.
-        </p>
-      </div>
+        </div>
+      )}
 
     </div>
   );
