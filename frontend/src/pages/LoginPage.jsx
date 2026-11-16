@@ -10,7 +10,6 @@ import {
   AlertCircle, 
   Sparkles, 
   Shield, 
-  Flame,
   KeyRound,
   RefreshCw,
   Send,
@@ -19,8 +18,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { DarkSoulsHoloCard } from "@designcodeio/threeui";
-import "@designcodeio/threeui/style.css";
+
 
 export default function LoginPage() {
   const { login, sendOtp, loginWithOtp } = useAuth();
@@ -210,80 +208,58 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-[90vh] flex items-center justify-center px-4 py-8 sm:py-12">
-      <div className="w-full max-w-6xl">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
-          
-          {/* Left Column: Interactive 3D Holographic Artifact */}
-          <div className="lg:col-span-6 xl:col-span-7 flex flex-col items-center">
-            <div className="w-full max-w-lg lg:max-w-none space-y-3">
-              <div className="flex items-center justify-between px-2">
-                <div className="flex items-center gap-2">
-                  <Flame className="w-4 h-4 text-amber-500 animate-pulse" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
-                    Cindermane Artifact
-                  </span>
-                </div>
-                <span className="text-[11px] text-slate-400 font-mono">
-                  Move • Drag • Double-Click to Flip
-                </span>
-              </div>
+    <div className="min-h-[90vh] flex items-center justify-center px-4 py-8 sm:py-12 relative overflow-hidden">
+      
+      {/* Background Ambient Glow Orbs */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-tr from-sky-500/10 via-blue-600/10 to-indigo-600/10 rounded-full blur-3xl pointer-events-none -z-10" />
 
-              {/* ThreeUI HoloCard */}
-              <div className="shader-frame h-[420px] sm:h-[500px] lg:h-[590px] rounded-3xl border border-amber-500/25 shadow-2xl shadow-amber-950/40 overflow-hidden bg-[#050404]">
-                <DarkSoulsHoloCard variant="cindermane" />
-              </div>
-            </div>
+      <div className="w-full max-w-xl mx-auto">
+        
+        {/* Header Icon & Brand */}
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-sky-500 via-blue-600 to-indigo-600 shadow-xl shadow-sky-500/20 mb-3 ring-1 ring-white/20">
+            <ShieldCheck className="w-8 h-8 text-white" />
           </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+            Welcome to TruthShield
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-400 mt-1.5">
+            Verified Identity & Automated Misinformation Defense Platform
+          </p>
+        </div>
 
-          {/* Right Column: Sign In Form & Quick Access */}
-          <div className="lg:col-span-6 xl:col-span-5 w-full max-w-md mx-auto">
-            
-            {/* Header Icon & Brand */}
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-purple-600 shadow-xl shadow-cyan-500/20 mb-3 ring-1 ring-white/20">
-                <ShieldCheck className="w-8 h-8 text-white" />
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-                Welcome to TruthShield
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1.5">
-                Multi-Modal Fact Checking & Deepfake Defense System
-              </p>
-            </div>
+        {/* 1-Click Demo Logins Banner */}
+        <div className="mb-4 p-3 rounded-xl bg-dark-800/80 border border-sky-500/30 backdrop-blur-sm shadow-lg shadow-sky-500/5">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-sky-400">
+              Viva & Quick Demo Access
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('admin@truthshield.com', 'TruthShieldAdmin@2025')}
+              disabled={loading}
+              className="py-1.5 px-3 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 hover:text-white text-xs font-medium transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <Shield className="w-3.5 h-3.5 text-purple-400" />
+              <span>Admin Demo</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('user@truthshield.com', 'TruthShield@2025')}
+              disabled={loading}
+              className="py-1.5 px-3 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 hover:text-white text-xs font-medium transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-sky-400" />
+              <span>User Demo</span>
+            </button>
+          </div>
+        </div>
 
-            {/* 1-Click Demo Logins Banner */}
-            <div className="mb-4 p-3 rounded-xl bg-dark-800/80 border border-cyan-500/30 backdrop-blur-sm shadow-lg shadow-cyan-500/5">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-cyan-400">
-                  Viva & Quick Demo Access
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('admin@truthshield.com', 'admin123')}
-                  disabled={loading}
-                  className="py-1.5 px-3 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 hover:text-white text-xs font-medium transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  <Shield className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Admin Demo</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('user@truthshield.com', 'user123')}
-                  disabled={loading}
-                  className="py-1.5 px-3 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 hover:text-white text-xs font-medium transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>User Demo</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Main Glassmorphic Form Card */}
-            <div className="glass-panel p-6 sm:p-7 rounded-2xl border border-white/10 bg-dark-800/70 backdrop-blur-xl shadow-2xl relative overflow-hidden">
+        {/* Main Glassmorphic Form Card */}
+        <div className="glass-panel p-6 sm:p-7 rounded-2xl border border-white/10 bg-dark-800/70 backdrop-blur-xl shadow-2xl relative overflow-hidden">
               
               {/* Dual Tab Mode Switcher: Password vs Email OTP */}
               <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-dark-900/90 border border-white/5 mb-5">
@@ -583,11 +559,7 @@ export default function LoginPage() {
                 </p>
               </div>
             </div>
-
           </div>
-
         </div>
-      </div>
-    </div>
-  );
-}
+      );
+    }
