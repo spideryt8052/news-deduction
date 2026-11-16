@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from app.core.config import settings
 from app.database.session import get_db
+from app.database.mongodb import get_db_status
 from app.services.db_service import DatabaseService
 from app.services.llm_service import LLMService
 from app.schemas.analysis import (
@@ -51,7 +52,7 @@ async def health_check():
         "environment": settings.ENVIRONMENT,
         "ai_provider": settings.AI_PROVIDER,
         "active_backend_keys": configured_keys,
-        "database": "connected (PostgreSQL / SQLite persistent layer)",
+        "database": get_db_status(),
         "institution": "Greater Noida Institute of Technology (GNIOT) / AKTU",
         "supervisor": "Dr. Saumya Chaturvedi",
         "team": ["Aarti Vishwakarma", "Soni", "Vandana", "Yaseen Jamshed"]

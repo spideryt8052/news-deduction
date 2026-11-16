@@ -40,8 +40,10 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000"
     ]
     
-    # Database URL: SQLite by default for zero-friction local run; PostgreSQL in production
-    DATABASE_URL: str = "sqlite:///./misinfo_app.db"
+    # Database Configuration: MongoDB (Local & MongoDB Atlas Cloud)
+    MONGODB_URI: str = "mongodb://localhost:27017"
+    MONGODB_DATABASE: str = "truthshield"
+    DATABASE_URL: str = ""
     
     # Cryptographic JWT Secret Key (Should be set in .env with a 64+ char random hex string)
     SECRET_KEY: str = ""
