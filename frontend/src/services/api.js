@@ -1,9 +1,19 @@
 import axios from 'axios';
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || (
-  typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+// Smart URL resolver:
+// If running on a live website (Netlify, Vercel, etc. - anything other than localhost),
+// ALWAYS route requests to the live Render backend cloud URL!
+const isBrowser = typeof window !== 'undefined';
+const isLocalhost = isBrowser && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+export const API_BASE_URL = (
+  !isBrowser 
     ? 'https://news-deduction.onrender.com'
-    : 'http://127.0.0.1:8000'
+    : !isLocalhost 
+    ? (import.meta.env.VITE_API_URL && !import.meta.env.VITE_API_URL.includes('127.0.0.1') && !import.meta.env.VITE_API_URL.includes('localhost')
+        ? import.meta.env.VITE_API_URL 
+        : 'https://news-deduction.onrender.com')
+    : (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000')
 );
 
 export const getApiBaseUrl = () => API_BASE_URL;
@@ -51,7 +61,7 @@ const client = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 25000,
+  timeout: 60000,
 });
 
 // Request interceptor to automatically attach custom AI key, provider, and Bearer auth token
@@ -83,9 +93,12 @@ export const formatApiError = (error) => {
     if (data?.message) return data.message;
     return `Server error (${error.response.status}): ${error.response.statusText}`;
   } else if (error.code === 'ECONNABORTED' || error.message?.toLowerCase().includes('timeout')) {
-    return 'Processing took too long and timed out. Please try with a smaller document or section.';
+    return 'Cloud server is waking up or taking longer than usual (Render free instance cold start takes ~45s). Please try again in 10-15 seconds!';
   } else if (error.request || error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
-    return 'Backend server is unreachable on port 8000. Please ensure the backend is running (e.g., uvicorn app.main:app --reload).';
+    if (isLocalhost) {
+      return 'Local backend server is unreachable on port 8000. Please ensure uvicorn is running.';
+    }
+    return 'Live cloud server is currently waking up or temporarily unreachable. Please wait 15-20 seconds for Render to spin up and try again!';
   } else {
     return error.message || 'An unexpected error occurred.';
   }
