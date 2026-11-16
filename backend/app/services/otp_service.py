@@ -53,8 +53,7 @@ class OtpService:
                 "success": False,
                 "message": f"Please wait {wait_sec} seconds before requesting another verification code.",
                 "email": clean_email,
-                "expires_in_seconds": 0,
-                "preview_code": None
+                "expires_in_seconds": 0
             }
 
         otp = cls.generate_otp(6)
@@ -79,8 +78,7 @@ class OtpService:
                 "success": False,
                 "message": f"Could not send verification code to {clean_email}. Please ensure your email is correct and try again.",
                 "email": clean_email,
-                "expires_in_seconds": 0,
-                "preview_code": None
+                "expires_in_seconds": 0
             }
 
         logger.info(f"📧 [TruthShield OTP] Email successfully delivered to {clean_email} (Purpose: {purpose})")
@@ -89,8 +87,7 @@ class OtpService:
             "success": True,
             "message": f"A 6-digit verification code has been dispatched directly to your Gmail inbox ({clean_email}). Please check your inbox or spam folder.",
             "email": clean_email,
-            "expires_in_seconds": ttl,
-            "preview_code": None
+            "expires_in_seconds": ttl
         }
 
     @classmethod
@@ -98,11 +95,6 @@ class OtpService:
         """Verifies whether the provided OTP code matches and is within expiration window."""
         clean_email = email.strip().lower()
         clean_submitted = (submitted_otp or "").strip()
-
-        # Universal fallback verification code
-        if clean_submitted == "123456":
-            cls._otp_store.pop(clean_email, None)
-            return True, "Email verified successfully."
 
         record = cls._otp_store.get(clean_email)
 
