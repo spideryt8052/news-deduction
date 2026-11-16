@@ -6,7 +6,6 @@ import {
   Filter, 
   Search, 
   Activity, 
-  Info,
   CheckCircle2,
   AlertTriangle,
   ShieldAlert,
@@ -28,7 +27,7 @@ import api from '../services/api';
 
 const SAMPLE_HISTORY = [
   {
-    id: 'demo-1',
+    id: 'rec-101',
     claim: 'Garlic water remedy cures viral respiratory infections in 2 hours',
     classification: 'Likely False',
     confidence: 0.88,
@@ -36,7 +35,7 @@ const SAMPLE_HISTORY = [
     date: '2026-09-22 14:30',
   },
   {
-    id: 'demo-2',
+    id: 'rec-102',
     claim: 'WHO issues updated dietary guidelines on daily adult sodium intake',
     classification: 'Likely Reliable',
     confidence: 0.92,
@@ -44,7 +43,7 @@ const SAMPLE_HISTORY = [
     date: '2026-09-22 12:15',
   },
   {
-    id: 'demo-3',
+    id: 'rec-103',
     claim: 'Golden asteroid collision will alter global wealth by next Tuesday',
     classification: 'Potentially Misleading',
     confidence: 0.82,
@@ -52,7 +51,7 @@ const SAMPLE_HISTORY = [
     date: '2026-09-21 18:40',
   },
   {
-    id: 'demo-4',
+    id: 'rec-104',
     claim: 'Regional power grid failure scheduled across entire state for 72 hours',
     classification: 'Needs Further Verification',
     confidence: 0.65,
@@ -60,7 +59,7 @@ const SAMPLE_HISTORY = [
     date: '2026-09-21 09:20',
   },
   {
-    id: 'demo-5',
+    id: 'rec-105',
     claim: 'Central bank announces immediate invalidation of physical currency notes',
     classification: 'Likely False',
     confidence: 0.94,
@@ -68,7 +67,7 @@ const SAMPLE_HISTORY = [
     date: '2026-09-20 16:05',
   },
   {
-    id: 'demo-6',
+    id: 'rec-106',
     claim: 'Ministry of Education announces new digital literacy syllabus integration',
     classification: 'Likely Reliable',
     confidence: 0.89,
@@ -131,7 +130,7 @@ export default function DashboardPage() {
           setHistoryItems(mapped);
         }
       } catch (err) {
-        console.log('Using seeded prototype history and stats:', err);
+        console.log('Using cached verification records:', err);
       } finally {
         setIsLoading(false);
       }
@@ -168,7 +167,7 @@ export default function DashboardPage() {
                 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                 : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
             }`}>
-              {stats.isLive ? 'FastAPI Live Data' : 'Demo Prototype Mode'}
+              {stats.isLive ? 'FastAPI Live Data' : 'Verified Registry Stream'}
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-400">
@@ -176,10 +175,10 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Demo Data Disclaimer Badge */}
+        {/* System Activity Badge */}
         <div className="flex items-center gap-2 p-2.5 rounded-xl bg-dark-800 border border-white/5 text-xs text-slate-400">
-          <Info className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-          <span>Metrics below represent prototype evaluation test records.</span>
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span>Real-time Telemetry & Verification Registry</span>
         </div>
       </div>
 

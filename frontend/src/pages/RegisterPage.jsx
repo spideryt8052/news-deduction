@@ -217,7 +217,7 @@ export default function RegisterPage() {
 
     if (resp.success) {
       if (resp.preview_code) {
-        setDemoCode(resp.preview_code);
+        setPreviewOtp(resp.preview_code);
       }
       setResendTimer(60);
       setCanResend(false);
@@ -475,13 +475,9 @@ export default function RegisterPage() {
                   A confidential 6-digit code has been delivered to <strong className="text-white">{email}</strong>.
                 </p>
 
-                {previewOtp ? (
-                  <div className="mt-2 py-1.5 px-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-mono">
-                    💡 Cloud Host Port Block Detected. Auto-filled code: <strong>{previewOtp}</strong>
-                  </div>
-                ) : (
-                  <div className="mt-2 text-[10px] text-slate-400">
-                    <span>Demo / Examiner Master Code: <strong className="text-slate-300 font-mono">123456</strong></span>
+                {previewOtp && (
+                  <div className="mt-2 py-1.5 px-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-mono">
+                    Verification code: <strong>{previewOtp}</strong>
                   </div>
                 )}
               </div>

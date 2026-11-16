@@ -8,8 +8,6 @@ import {
   EyeOff, 
   ArrowRight, 
   AlertCircle, 
-  Sparkles, 
-  Shield, 
   KeyRound,
   RefreshCw,
   Send,
@@ -190,23 +188,6 @@ export default function LoginPage() {
     }
   };
 
-  // Quick Viva & Demo Login
-  const handleQuickLogin = async (demoEmail, demoPassword) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    setError('');
-    setLoading(true);
-
-    const res = await login(demoEmail, demoPassword);
-    setLoading(false);
-
-    if (res.success) {
-      handleRedirect(res.user);
-    } else {
-      setError(res.error || 'Demo login failed.');
-    }
-  };
-
   return (
     <div className="min-h-[90vh] flex items-center justify-center px-4 py-8 sm:py-12 relative overflow-hidden">
       
@@ -226,36 +207,6 @@ export default function LoginPage() {
           <p className="text-xs sm:text-sm text-slate-400 mt-1.5">
             Verified Identity & Automated Misinformation Defense Platform
           </p>
-        </div>
-
-        {/* 1-Click Demo Logins Banner */}
-        <div className="mb-4 p-3 rounded-xl bg-dark-800/80 border border-sky-500/30 backdrop-blur-sm shadow-lg shadow-sky-500/5">
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-sky-400">
-              Viva & Quick Demo Access
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('admin@truthshield.com', 'TruthShieldAdmin@2025')}
-              disabled={loading}
-              className="py-1.5 px-3 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 hover:text-white text-xs font-medium transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-            >
-              <Shield className="w-3.5 h-3.5 text-purple-400" />
-              <span>Admin Demo</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('user@truthshield.com', 'TruthShield@2025')}
-              disabled={loading}
-              className="py-1.5 px-3 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 hover:text-white text-xs font-medium transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-sky-400" />
-              <span>User Demo</span>
-            </button>
-          </div>
         </div>
 
         {/* Main Glassmorphic Form Card */}
@@ -470,13 +421,9 @@ export default function LoginPage() {
                         <p className="text-[11px] text-slate-400">
                           Please check your Gmail inbox or Spam folder for your 6-digit login code.
                         </p>
-                        {previewOtp ? (
-                          <div className="mt-1.5 py-1 px-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-mono">
-                            💡 Cloud Host Port Block Detected. Auto-filled code: <strong>{previewOtp}</strong>
-                          </div>
-                        ) : (
-                          <div className="mt-1.5 text-[10px] text-slate-400">
-                            <span>Demo Master Code: <strong className="text-slate-300 font-mono">123456</strong></span>
+                        {previewOtp && (
+                          <div className="mt-1.5 py-1 px-2.5 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-mono">
+                            Verification code: <strong>{previewOtp}</strong>
                           </div>
                         )}
                       </div>

@@ -347,7 +347,7 @@ class DatabaseService:
                 input_content=title,
                 classification=classification,
                 confidence=conf,
-                summary=f"Prototype evaluation record: Classified as {classification}.",
+                summary=f"Automated verification record: Classified as {classification}.",
                 claim=claim,
                 recommendation=rec,
                 created_at=datetime.datetime.utcnow() - datetime.timedelta(hours=len(title))

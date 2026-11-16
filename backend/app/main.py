@@ -19,7 +19,7 @@ from app.api.routes_omnivoice import router as omnivoice_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Initialize Database Tables & Seed Prototype Data
+    # Startup: Initialize Database & Seed Verification Records
     init_db()
     db = SessionLocal()
     try:

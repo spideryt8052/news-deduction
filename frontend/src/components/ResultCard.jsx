@@ -191,7 +191,7 @@ Reality: ${displayRecommendation}`;
   const handleFeedback = async (isHelpful) => {
     try {
       await api.submitFeedback({
-        result_id: id || 'demo-id',
+        result_id: id || 'rec-live',
         is_helpful: isHelpful,
         comments: isHelpful ? 'User marked as helpful' : 'User flagged for review',
       });
