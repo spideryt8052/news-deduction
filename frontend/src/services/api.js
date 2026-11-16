@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Smart URL resolver:
-// If running on a live website (Netlify, Vercel, etc. - anything other than localhost),
+// If running on a live website (Vercel production, etc. - anything other than localhost),
 // ALWAYS route requests to the live Render backend cloud URL!
 const isBrowser = typeof window !== 'undefined';
 const isLocalhost = isBrowser && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');

@@ -1,13 +1,12 @@
 {
   "rewrites": [
     {
-      "source": "/api/:match*",
-      "destination": "https://news-deduction.onrender.com/api/:match*"
+      "source": "/api/:path*",
+      "destination": "https://news-deduction.onrender.com/api/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]
 }
-
