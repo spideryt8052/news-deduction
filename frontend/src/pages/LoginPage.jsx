@@ -50,7 +50,7 @@ export default function LoginPage() {
   const [successMsg, setSuccessMsg] = useState('');
 
   // Redirection target
-  const from = location.state?.from?.pathname || null;
+  const from = location.state?.returnTo || location.state?.from?.pathname || null;
 
   // Countdown timer for OTP mode
   useEffect(() => {

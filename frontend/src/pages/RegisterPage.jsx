@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   ShieldCheck, 
   User, 
@@ -25,6 +25,8 @@ import { useAuth } from '../context/AuthContext';
 export default function RegisterPage() {
   const { registerWithOtp, sendOtp } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.returnTo || location.state?.from?.pathname || '/user/panel';
 
   // Step 1: form details, Step 2: 6-digit OTP verification
   const [step, setStep] = useState(1);
@@ -192,7 +194,7 @@ export default function RegisterPage() {
     setLoading(false);
 
     if (res.success) {
-      navigate('/user/panel', { replace: true });
+      navigate(from, { replace: true });
     } else {
       setError(res.error || 'Verification failed. The code may be incorrect or expired.');
     }
