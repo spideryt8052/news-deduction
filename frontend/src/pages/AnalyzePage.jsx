@@ -25,14 +25,14 @@ export default function AnalyzePage() {
       
       {/* Studio Header */}
       <div className="text-center max-w-2xl mx-auto space-y-2">
-        <span className="text-xs uppercase tracking-wider font-semibold text-cyan-400 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20">
-          Credibility Analysis Studio
+        <span className="text-xs uppercase tracking-wider font-semibold text-sky-400 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20">
+          Fact-Check Studio
         </span>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-          Verify Social Media Information
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-100 tracking-tight">
+          Check Any News or Viral Claim
         </h1>
         <p className="text-xs sm:text-sm text-slate-400">
-          Enter text, speak your claim, supply a news article URL, or upload a screenshot to evaluate credibility markers.
+          Paste a message, enter an article link, speak your claim, or upload a screenshot to see verified facts.
         </p>
       </div>
 

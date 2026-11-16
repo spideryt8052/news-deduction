@@ -1,218 +1,284 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   ShieldCheck, 
-  Sparkles, 
   ArrowRight, 
-  HelpCircle, 
   ChevronDown, 
-  Globe2, 
-  Scale, 
-  Users, 
-  Lock,
-  CheckCircle2,
-  AlertTriangle,
-  ShieldAlert,
-  Eye
+  CheckCircle2, 
+  AlertTriangle, 
+  ShieldAlert, 
+  Eye, 
+  MessageSquare, 
+  Newspaper, 
+  Building2,
+  FileSearch,
+  Scale,
+  Sparkles,
+  Share2,
+  Check
 } from 'lucide-react';
 import HeroSection from '../components/HeroSection';
-import AnalyzeBox from '../components/AnalyzeBox';
 import ResultCard from '../components/ResultCard';
-import HowItWorks from '../components/HowItWorks';
-import AwarenessSection from '../components/AwarenessSection';
 
 const FAQ_ITEMS = [
   {
-    q: 'How does TruthShield check if a news story or claim is genuine?',
-    a: 'When you enter a claim or news link, TruthShield cross-checks the statement against verified reports from credible news organizations and official databases. It evaluates source credibility, checks if quotes are taken out of context, and provides a clear breakdown of why something is genuine or misleading.'
+    q: 'How does TruthShield check if a news story or message is true?',
+    a: 'When you paste a message or news link, TruthShield cross-checks the statement against verified reports from credible news agencies (like Reuters, PTI, AP, BBC) and official databases (like PIB Fact Check and the WHO). It looks for original context, verifies quotes, and provides you with the facts and direct proof links.'
   },
   {
     q: 'What do the 4 credibility results mean?',
-    a: '1) Likely Reliable: Supported by verified reporting from established and authoritative sources. 2) Potentially Misleading: Contains fragments of truth, but facts are distorted, exaggerated, or framed out of context. 3) Likely False: Contradicted by proven facts, official registries, or reliable fact-checking agencies. 4) Needs Further Verification: Insufficient corroborated evidence available at this time to verify or refute.'
+    a: '1) Verified Real: Supported by factual reporting from credible and official sources. 2) Misleading: Contains fragments of truth, but key context is omitted or exaggerated. 3) False / Fake: Contradicted by facts or fabricated entirely. 4) Unverified: Insufficient evidence available right now to confirm or refute.'
   },
   {
-    q: 'Can I verify WhatsApp forwards and screenshots of social posts?',
-    a: 'Yes. You can paste forwarded WhatsApp messages, tweets, Facebook posts, or upload screenshot images (.png, .jpg, .webp). The system extracts the core claims and checks if the claim is an old recirculated rumor or a newly emerging story.'
+    q: 'Can I check WhatsApp forwards and screenshots of social posts?',
+    a: 'Yes. You can paste forwarded WhatsApp messages, tweets, Facebook posts, or upload screenshot images (.png, .jpg, .webp). The system extracts the text and checks if it is an old recirculated rumor or a newly emerging viral story.'
   },
   {
-    q: 'What should I do if a story is marked as Potentially Misleading or False?',
-    a: 'Pause before forwarding or sharing it. Do not spread it in group chats or social channels. You can share the fact-check result with the person who sent it to help protect others from misinformation.'
+    q: 'What should I do if a story is marked as Fake or Misleading?',
+    a: 'Pause and do not forward it. You can click the "Share Warning" button on the result card to copy a polite warning message and share it back to the WhatsApp group or person who sent it to help protect others.'
   },
   {
-    q: 'Is my data private and secure when checking news?',
-    a: 'Yes. TruthShield is built to promote public truth and digital safety. Claims submitted for verification are analyzed securely, and your personal browsing identity is never tracked or shared with advertisers.'
+    q: 'Is my search data private and safe?',
+    a: 'Yes, 100%. TruthShield is built to promote public truth and digital safety. Claims submitted for verification are analyzed securely, and your personal browsing identity is never tracked or shared with advertisers.'
   }
 ];
 
 export default function HomePage() {
   const [activeAnalysis, setActiveAnalysis] = useState(null);
   const [openFaq, setOpenFaq] = useState(null);
+  const resultRef = useRef(null);
+
+  const handleAnalysisComplete = (result) => {
+    setActiveAnalysis(result);
+    // Smooth scroll down to result card
+    setTimeout(() => {
+      if (resultRef.current) {
+        resultRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
 
   const toggleFaq = (index) => {
     setOpenFaq(openFaq === index ? null : index);
   };
 
   return (
-    <div className="space-y-16 pb-12">
+    <div className="space-y-16 pb-16">
       
-      {/* 1. Hero Section */}
-      <HeroSection />
+      {/* 1. Hero Section: Unified Headline, Search Bar & 3D Earth Globe */}
+      <HeroSection onAnalysisComplete={handleAnalysisComplete} />
 
-      {/* 2. Interactive Analysis Showcase in Home */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-2xl mx-auto mb-8 space-y-2">
-          <span className="text-xs uppercase tracking-wider font-semibold text-cyan-400 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20">
-            Live Interactive Analysis
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            Try It Now
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-400">
-            Paste a viral forward, enter a news URL, or pick a sample preset below:
-          </p>
-        </div>
-
-        {!activeAnalysis ? (
-          <AnalyzeBox onAnalysisComplete={(result) => setActiveAnalysis(result)} />
-        ) : (
+      {/* 2. Interactive Analysis Result Display (Reveals seamlessly upon check) */}
+      {activeAnalysis && (
+        <section ref={resultRef} className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-2">
+          <div className="mb-4 flex items-center justify-between">
+            <span className="text-xs uppercase tracking-wider font-semibold text-sky-400 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20">
+              Live Verification Result
+            </span>
+            <button
+              onClick={() => setActiveAnalysis(null)}
+              className="text-xs text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+            >
+              Clear & Check Another
+            </button>
+          </div>
           <ResultCard result={activeAnalysis} onReset={() => setActiveAnalysis(null)} />
-        )}
-      </section>
+        </section>
+      )}
 
-      {/* 3. Detailed Detection Categories */}
+      {/* 3. Everyday Situations Where TruthShield Helps (Human-Centered Stories) */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-10 space-y-2">
-          <span className="text-xs uppercase tracking-wider font-semibold text-cyan-400 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20">
-            Categorization Framework
+          <span className="text-xs uppercase tracking-wider font-semibold text-sky-400 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20">
+            Real Everyday Protection
           </span>
-          <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            Four Calibrated Credibility Tiers
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-100 tracking-tight">
+            Stop Fake News in Its Tracks
           </h2>
           <p className="text-xs sm:text-sm text-slate-400">
-            Replacing simplistic binary labels with actionable, nuance-aware assessments.
+            Three common places where misinformation spreads every day — and how you can stop it:
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="p-6 rounded-2xl glass-panel border border-emerald-500/20 space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          {/* Card 1: Family WhatsApp Groups */}
+          <div className="p-6 sm:p-7 rounded-3xl bg-slate-900/60 border border-slate-800/80 shadow-xl space-y-4 hover:border-slate-700 transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+              <MessageSquare className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-100">
+              WhatsApp Family Groups
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              When relatives forward miracle home cures, fake festive recharge schemes, or panic warnings, verify them in 5 seconds before anyone gets scammed or alarmed.
+            </p>
+            <div className="pt-2 text-xs text-emerald-400 font-medium flex items-center gap-1.5">
+              <Check className="w-4 h-4" />
+              <span>Copy 1-click warning message to share</span>
+            </div>
+          </div>
+
+          {/* Card 2: Breaking Social Media Stories */}
+          <div className="p-6 sm:p-7 rounded-3xl bg-slate-900/60 border border-slate-800/80 shadow-xl space-y-4 hover:border-slate-700 transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-sky-500/10 text-sky-400 flex items-center justify-center">
+              <Newspaper className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-100">
+              Breaking News on Social Media
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Sensational headlines, doctored video clips, and recycled old accident footage often circulate during crises. Cross-check whether genuine reporters actually published it.
+            </p>
+            <div className="pt-2 text-xs text-sky-400 font-medium flex items-center gap-1.5">
+              <Check className="w-4 h-4" />
+              <span>Cross-checked against Reuters, PTI, PIB</span>
+            </div>
+          </div>
+
+          {/* Card 3: Government Schemes & Job Scams */}
+          <div className="p-6 sm:p-7 rounded-3xl bg-slate-900/60 border border-slate-800/80 shadow-xl space-y-4 hover:border-slate-700 transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center">
+              <Building2 className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-100">
+              Government Schemes & Jobs
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Scammers frequently circulate fake recruitment notices, free laptop schemes, or bank subsidy links. Check official gazettes and registries before sharing personal data.
+            </p>
+            <div className="pt-2 text-xs text-purple-400 font-medium flex items-center gap-1.5">
+              <Check className="w-4 h-4" />
+              <span>Protects personal data & bank accounts</span>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 4. How It Works (Simple 3 Steps) */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="p-8 sm:p-12 rounded-3xl bg-slate-900/50 border border-slate-800/80 space-y-8">
+          
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <span className="text-xs uppercase tracking-wider font-semibold text-sky-400 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20">
+              Simple 3-Step Process
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-100 tracking-tight">
+              How Fact-Checking Works
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400">
+              No technical expertise needed. Just paste, check, and see verified proof.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+            
+            <div className="p-5 sm:p-6 rounded-2xl bg-slate-950/60 border border-slate-800/60 space-y-3">
+              <div className="w-9 h-9 rounded-xl bg-slate-800 text-sky-400 font-bold flex items-center justify-center text-sm">
+                1
+              </div>
+              <h4 className="text-base font-bold text-slate-100">Paste What You Read</h4>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Copy any message, type a headline, paste a web link, or upload a screenshot directly into the search bar.
+              </p>
+            </div>
+
+            <div className="p-5 sm:p-6 rounded-2xl bg-slate-950/60 border border-slate-800/60 space-y-3">
+              <div className="w-9 h-9 rounded-xl bg-slate-800 text-sky-400 font-bold flex items-center justify-center text-sm">
+                2
+              </div>
+              <h4 className="text-base font-bold text-slate-100">We Cross-Check the Evidence</h4>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                We search credible news wire archives, official government portals, scientific databases, and verified fact-checkers.
+              </p>
+            </div>
+
+            <div className="p-5 sm:p-6 rounded-2xl bg-slate-950/60 border border-slate-800/60 space-y-3">
+              <div className="w-9 h-9 rounded-xl bg-slate-800 text-sky-400 font-bold flex items-center justify-center text-sm">
+                3
+              </div>
+              <h4 className="text-base font-bold text-slate-100">Get Truth & Share Proof</h4>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Receive an immediate verdict with human-readable bullet points, direct source links, and an optional 1-click WhatsApp warning.
+              </p>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* 5. 4 Clear Credibility Verdicts */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center max-w-2xl mx-auto mb-10 space-y-2">
+          <span className="text-xs uppercase tracking-wider font-semibold text-sky-400 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20">
+            Clear Results
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-100 tracking-tight">
+            Four Simple Verdicts You Can Trust
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-400">
+            Clear, honest answers instead of confusing percentages or complex graphs:
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          
+          <div className="p-5 sm:p-6 rounded-3xl bg-slate-900/60 border border-emerald-500/20 space-y-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
               <CheckCircle2 className="w-6 h-6" />
             </div>
-            <h3 className="text-base font-bold text-white">Likely Reliable</h3>
+            <h3 className="text-base font-bold text-emerald-400">Verified Real</h3>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Information is corroborated by verified official agencies, established journalistic institutions, or peer-reviewed literature with neutral, non-sensational phrasing.
+              Supported by verified official reports, reputable news outlets, or primary records. Safe to believe and reference.
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl glass-panel border border-amber-500/20 space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
+          <div className="p-5 sm:p-6 rounded-3xl bg-slate-900/60 border border-amber-500/20 space-y-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
               <AlertTriangle className="w-6 h-6" />
             </div>
-            <h3 className="text-base font-bold text-white">Potentially Misleading</h3>
+            <h3 className="text-base font-bold text-amber-400">Misleading / Partial</h3>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Contains grains of truth or genuine quotes, but places them in misleading contexts, omits critical caveats, or uses hyperbolic headlines to distort understanding.
+              Contains a grain of truth, but essential context was omitted, exaggerated, or twisted to create sensation or panic.
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl glass-panel border border-rose-500/20 space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center">
+          <div className="p-5 sm:p-6 rounded-3xl bg-slate-900/60 border border-rose-500/20 space-y-3">
+            <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center">
               <ShieldAlert className="w-6 h-6" />
             </div>
-            <h3 className="text-base font-bold text-white">Likely False</h3>
+            <h3 className="text-base font-bold text-rose-400">False / Fake News</h3>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Directly refuted by fact-checking organizations, official documentation, or forensic verification. Often exhibits extreme emotional urgency and forward requests.
+              Directly refuted by fact-checking organizations or fabricated entirely. Do not forward or believe.
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl glass-panel border border-blue-500/20 space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center">
+          <div className="p-5 sm:p-6 rounded-3xl bg-slate-900/60 border border-slate-700/60 space-y-3">
+            <div className="w-10 h-10 rounded-2xl bg-slate-800 text-slate-400 flex items-center justify-center">
               <Eye className="w-6 h-6" />
             </div>
-            <h3 className="text-base font-bold text-white">Needs Verification</h3>
+            <h3 className="text-base font-bold text-slate-300">Unverified / Rumor</h3>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Insufficient publicly available evidence exists to corroborate or refute the claim. Advises the user to suspend judgment and avoid sharing pending confirmation.
+              Not enough credible public evidence exists right now to confirm or refute. Wait for reliable journalists to confirm.
             </p>
           </div>
+
         </div>
       </section>
 
-      {/* 4. Why Verification Matters (Societal & Democratic Impact) */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="p-8 sm:p-12 rounded-3xl glass-panel border border-white/10 relative overflow-hidden">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-            <div className="space-y-4">
-              <span className="text-xs uppercase tracking-wider font-semibold text-cyan-400 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20">
-                The Digital Literacy Challenge
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                Why Credibility Verification Matters
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Rapid unverified forwarding across WhatsApp, X, and Instagram directly distorts public health decisions, exacerbates social panic, and impacts community trust.
-              </p>
-              
-              <div className="space-y-2 pt-2">
-                <div className="flex items-start space-x-3 text-xs text-slate-300">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-1.5"></span>
-                  <span><strong>Public Health Safety:</strong> Counteracting bogus medical remedies and viral unscientific cures.</span>
-                </div>
-                <div className="flex items-start space-x-3 text-xs text-slate-300">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-1.5"></span>
-                  <span><strong>Democratic Integrity:</strong> Guarding against synthetic bot-driven election polarization.</span>
-                </div>
-                <div className="flex items-start space-x-3 text-xs text-slate-300">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-1.5"></span>
-                  <span><strong>Cognitive Resilience:</strong> Equipping regular social media users with critical verification reflexes.</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-5 rounded-2xl bg-dark-900/80 border border-white/5 space-y-1 text-center">
-                <span className="text-3xl font-extrabold text-cyan-400">6x</span>
-                <p className="text-xs text-slate-300 font-semibold">Faster Spread</p>
-                <p className="text-[11px] text-slate-500">Misinformation diffuses significantly faster than verified news on social platforms.</p>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-dark-900/80 border border-white/5 space-y-1 text-center">
-                <span className="text-3xl font-extrabold text-blue-400">70%</span>
-                <p className="text-xs text-slate-300 font-semibold">Unintentional Shares</p>
-                <p className="text-[11px] text-slate-500">Most misleading content is shared innocently by friends and family without malicious intent.</p>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-dark-900/80 border border-white/5 space-y-1 text-center">
-                <span className="text-3xl font-extrabold text-purple-400">30s</span>
-                <p className="text-xs text-slate-300 font-semibold">Verification Pause</p>
-                <p className="text-[11px] text-slate-500">A brief 30-second verification check reduces accidental forwarding probability drastically.</p>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-dark-900/80 border border-white/5 space-y-1 text-center">
-                <span className="text-3xl font-extrabold text-emerald-400">100%</span>
-                <p className="text-xs text-slate-300 font-semibold">Explainable</p>
-                <p className="text-[11px] text-slate-500">Every verdict is backed by explicit citations, source analysis, and transparent reasons.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 5. How It Works Section */}
-      <HowItWorks />
-
-      {/* 6. User Awareness Section */}
-      <AwarenessSection />
-
-      {/* 7. FAQ Section */}
+      {/* 6. Human FAQ Section */}
       <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-10 space-y-2">
-          <span className="text-xs uppercase tracking-wider font-semibold text-cyan-400 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20">
+          <span className="text-xs uppercase tracking-wider font-semibold text-sky-400 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20">
             Frequently Asked Questions
           </span>
-          <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            Frequently Asked Questions
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-100 tracking-tight">
+            Got Questions? We Have Answers.
           </h2>
           <p className="text-xs sm:text-sm text-slate-400">
-            Common questions about verifying claims, AI accuracy, and protecting your community from fake news.
+            Learn more about how fact verification works and how to protect yourself and your family:
           </p>
         </div>
 
@@ -222,18 +288,18 @@ export default function HomePage() {
             return (
               <div
                 key={index}
-                className="rounded-2xl glass-panel border border-white/10 overflow-hidden transition-all"
+                className="rounded-2xl bg-slate-900/60 border border-slate-800/80 overflow-hidden transition-all"
               >
                 <button
                   type="button"
                   onClick={() => toggleFaq(index)}
-                  className="w-full p-4 sm:p-5 text-left flex items-center justify-between text-sm sm:text-base font-semibold text-white hover:text-cyan-400 transition-colors"
+                  className="w-full p-4 sm:p-5 text-left flex items-center justify-between text-sm sm:text-base font-semibold text-slate-100 hover:text-sky-400 transition-colors cursor-pointer"
                 >
                   <span>{item.q}</span>
                   <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {isOpen && (
-                  <div className="px-5 pb-5 text-xs sm:text-sm text-slate-300 leading-relaxed border-t border-white/5 pt-3">
+                  <div className="px-5 pb-5 text-xs sm:text-sm text-slate-300 leading-relaxed border-t border-slate-800/60 pt-3">
                     {item.a}
                   </div>
                 )}
@@ -243,23 +309,25 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 8. Bottom CTA Banner */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="p-8 sm:p-12 rounded-3xl bg-gradient-to-r from-cyan-900/40 via-blue-900/30 to-purple-900/40 border border-cyan-500/30 text-center space-y-4">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
-            Ready to Verify Information Before Sharing?
+      {/* 7. Bottom Friendly CTA */}
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="p-8 sm:p-10 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl text-center space-y-4">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-100">
+            Protect Yourself and Your Family Today
           </h2>
-          <p className="text-xs sm:text-sm text-slate-300 max-w-xl mx-auto">
-            Test any social media post, headline, or screenshot with our AI-assisted credibility engine.
+          <p className="text-xs sm:text-sm text-slate-300 max-w-xl mx-auto leading-relaxed">
+            Whenever a piece of news sounds too sensational, scary, or good to be true — take 10 seconds to verify it here before pressing Share.
           </p>
           <div className="pt-2">
-            <Link
-              to="/analyze"
-              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-sm hover:from-cyan-400 hover:to-blue-500 shadow-xl shadow-cyan-500/20 transition-all hover:scale-105"
+            <button
+              onClick={() => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-sm shadow-lg shadow-sky-500/20 transition-all cursor-pointer"
             >
-              <span>Open Analysis Studio</span>
+              <span>Check a Story Right Now</span>
               <ArrowRight className="w-4 h-4" />
-            </Link>
+            </button>
           </div>
         </div>
       </section>

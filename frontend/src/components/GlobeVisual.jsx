@@ -1,21 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { 
-  FileText, 
-  Image as ImageIcon, 
-  Video, 
   MessageSquare, 
   Newspaper, 
   Globe2, 
-  ShieldCheck 
+  Image as ImageIcon, 
+  FileText, 
+  ShieldCheck,
+  CheckCircle2
 } from 'lucide-react';
 
 const MEDIA_TOKENS = [
-  { label: 'TEXT', icon: FileText, color: 'text-cyan-400', border: 'border-cyan-500/40', bg: 'bg-cyan-950/80', tag: 'Claim' },
-  { label: 'IMAGE', icon: ImageIcon, color: 'text-purple-400', border: 'border-purple-500/40', bg: 'bg-purple-950/80', tag: 'Visual' },
-  { label: 'VIDEO', icon: Video, color: 'text-rose-400', border: 'border-rose-500/40', bg: 'bg-rose-950/80', tag: 'Deepfake' },
-  { label: 'POST', icon: MessageSquare, color: 'text-amber-400', border: 'border-amber-500/40', bg: 'bg-amber-950/80', tag: 'Viral' },
-  { label: 'NEWS', icon: Newspaper, color: 'text-emerald-400', border: 'border-emerald-500/40', bg: 'bg-emerald-950/80', tag: 'Headline' },
-  { label: 'SOURCE', icon: Globe2, color: 'text-blue-400', border: 'border-blue-500/40', bg: 'bg-blue-950/80', tag: 'Domain' },
+  { label: 'WhatsApp', desc: 'Viral Forwards', icon: MessageSquare, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+  { label: 'Breaking News', desc: 'Headlines & Reports', icon: Newspaper, color: 'text-sky-400', bg: 'bg-sky-500/10', border: 'border-sky-500/20' },
+  { label: 'Article Links', desc: 'Web Stories', icon: Globe2, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+  { label: 'Screenshots', desc: 'Social Media Posts', icon: ImageIcon, color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
+  { label: 'Voice Notes', desc: 'Audio Rumors', icon: FileText, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
+  { label: 'Fact Checks', desc: 'Verified Sources', icon: ShieldCheck, color: 'text-teal-400', bg: 'bg-teal-500/10', border: 'border-teal-500/20' },
 ];
 
 export default function GlobeVisual() {
@@ -24,7 +24,7 @@ export default function GlobeVisual() {
   const [cards, setCards] = useState([]);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Resize listener for mobile optimization
+  // Resize listener
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -34,7 +34,7 @@ export default function GlobeVisual() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Canvas globe rendering loop
+  // Canvas globe rendering loop - warm, elegant Earth aesthetic
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -42,115 +42,128 @@ export default function GlobeVisual() {
     let animationFrameId;
     let rotation = 0;
 
-    // Responsive Canvas Sizing
-    const size = isMobile ? 260 : 340;
+    const size = isMobile ? 270 : 350;
     canvas.width = size * window.devicePixelRatio;
     canvas.height = size * window.devicePixelRatio;
     ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
     const centerX = size / 2;
     const centerY = size / 2;
-    const radius = isMobile ? 80 : 105;
+    const radius = isMobile ? 85 : 110;
 
     const render = () => {
       ctx.clearRect(0, 0, size, size);
 
-      // 1. Atmosphere Outer Glow
-      const glowGrad = ctx.createRadialGradient(
-        centerX, centerY, radius * 0.7,
+      // 1. Warm Atmospheric Outer Halo
+      const haloGrad = ctx.createRadialGradient(
+        centerX, centerY, radius * 0.75,
         centerX, centerY, radius * 1.35
       );
-      glowGrad.addColorStop(0, 'rgba(6, 182, 212, 0.25)');
-      glowGrad.addColorStop(0.5, 'rgba(59, 130, 246, 0.12)');
-      glowGrad.addColorStop(1, 'rgba(7, 11, 20, 0)');
-      ctx.fillStyle = glowGrad;
+      haloGrad.addColorStop(0, 'rgba(56, 189, 248, 0.18)');
+      haloGrad.addColorStop(0.5, 'rgba(37, 99, 235, 0.08)');
+      haloGrad.addColorStop(1, 'rgba(11, 15, 25, 0)');
+      ctx.fillStyle = haloGrad;
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius * 1.35, 0, Math.PI * 2);
       ctx.fill();
 
-      // 2. Earth Dark Ocean Sphere
+      // 2. Deep Blue Earth Ocean Sphere
       const oceanGrad = ctx.createRadialGradient(
-        centerX - radius * 0.3, centerY - radius * 0.3, radius * 0.1,
+        centerX - radius * 0.35, centerY - radius * 0.35, radius * 0.15,
         centerX, centerY, radius
       );
-      oceanGrad.addColorStop(0, '#102347');
-      oceanGrad.addColorStop(0.7, '#081226');
-      oceanGrad.addColorStop(1, '#050a14');
+      oceanGrad.addColorStop(0, '#1e293b');
+      oceanGrad.addColorStop(0.4, '#0f172a');
+      oceanGrad.addColorStop(0.85, '#090d16');
+      oceanGrad.addColorStop(1, '#05070c');
 
       ctx.save();
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
       ctx.fillStyle = oceanGrad;
       ctx.fill();
-      ctx.clip(); // Clip inner wireframe grid to sphere
+      ctx.clip(); // Clip contents to sphere
 
-      // 3. Digital Longitude & Latitude Grid (Wireframe Network)
-      ctx.strokeStyle = 'rgba(6, 182, 212, 0.25)';
+      // 3. Subtle Latitude Rings
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
       ctx.lineWidth = 1;
-
-      // Latitude rings
       for (let lat = -60; lat <= 60; lat += 30) {
         const radLat = (lat * Math.PI) / 180;
         const y = centerY + Math.sin(radLat) * radius;
         const rLat = Math.cos(radLat) * radius;
         ctx.beginPath();
-        ctx.ellipse(centerX, y, rLat, rLat * 0.25, 0, 0, Math.PI * 2);
+        ctx.ellipse(centerX, y, rLat, rLat * 0.22, 0, 0, Math.PI * 2);
         ctx.stroke();
       }
 
-      // Rotating Longitude Meridians
+      // 4. Rotating Longitude Meridians
       for (let lon = 0; lon < 180; lon += 30) {
         const radLon = ((lon + rotation) * Math.PI) / 180;
         const xOffset = Math.sin(radLon) * radius;
         ctx.beginPath();
         ctx.ellipse(centerX + xOffset * 0.5, centerY, Math.abs(xOffset), radius, 0, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(59, 130, 246, 0.2)';
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.14)';
         ctx.stroke();
       }
 
-      // 4. Digital Node Pulses on Earth surface
-      const numNodes = 14;
-      for (let i = 0; i < numNodes; i++) {
-        const nodeAngle = ((i * 360) / numNodes + rotation * 1.2) * (Math.PI / 180);
-        const nodeY = centerY + Math.sin(i * 1.5) * (radius * 0.7);
-        const nodeX = centerX + Math.cos(nodeAngle) * (radius * 0.85);
+      // 5. Global Fact-Check Beacon Points (Cities / News Centers)
+      const cities = [
+        { lat: 28.6, lon: 77.2, label: 'New Delhi' },
+        { lat: 51.5, lon: -0.1, label: 'London' },
+        { lat: 40.7, lon: -74.0, label: 'New York' },
+        { lat: 35.6, lon: 139.6, label: 'Tokyo' },
+        { lat: -33.8, lon: 151.2, label: 'Sydney' },
+        { lat: -23.5, lon: -46.6, label: 'São Paulo' },
+        { lat: 1.35, lon: 103.8, label: 'Singapore' },
+        { lat: 25.2, lon: 55.2, label: 'Dubai' },
+      ];
 
-        // Render node only if facing front
-        if (Math.sin(nodeAngle) > -0.2) {
-          ctx.fillStyle = i % 2 === 0 ? '#06b6d4' : '#3b82f6';
+      cities.forEach((city, idx) => {
+        const radLon = ((city.lon + rotation * 1.5) * Math.PI) / 180;
+        const radLat = (city.lat * Math.PI) / 180;
+
+        // Front-facing test
+        const cosLon = Math.cos(radLon);
+        if (cosLon > 0) {
+          const x = centerX + Math.sin(radLon) * Math.cos(radLat) * radius;
+          const y = centerY - Math.sin(radLat) * radius * 0.85;
+
+          // Pulse dot
+          ctx.fillStyle = idx % 2 === 0 ? 'rgba(56, 189, 248, 0.85)' : 'rgba(52, 211, 153, 0.85)';
           ctx.beginPath();
-          ctx.arc(nodeX, nodeY, isMobile ? 1.5 : 2.5, 0, Math.PI * 2);
+          ctx.arc(x, y, isMobile ? 2 : 2.5, 0, Math.PI * 2);
           ctx.fill();
 
-          // Subtle connection vectors
-          if (i > 0) {
-            const prevAngle = (((i - 1) * 360) / numNodes + rotation * 1.2) * (Math.PI / 180);
-            const prevY = centerY + Math.sin((i - 1) * 1.5) * (radius * 0.7);
-            const prevX = centerX + Math.cos(prevAngle) * (radius * 0.85);
-            ctx.strokeStyle = 'rgba(6, 182, 212, 0.15)';
-            ctx.beginPath();
-            ctx.moveTo(prevX, prevY);
-            ctx.lineTo(nodeX, nodeY);
-            ctx.stroke();
-          }
+          // Soft ring around dot
+          ctx.strokeStyle = idx % 2 === 0 ? 'rgba(56, 189, 248, 0.3)' : 'rgba(52, 211, 153, 0.3)';
+          ctx.beginPath();
+          ctx.arc(x, y, isMobile ? 4.5 : 6, 0, Math.PI * 2);
+          ctx.stroke();
         }
-      }
+      });
 
       ctx.restore();
 
-      // 5. Outer atmospheric rim border
-      ctx.strokeStyle = 'rgba(6, 182, 212, 0.6)';
+      // 6. Atmospheric Rim Crescent (Soft daylight reflection)
+      const rimGrad = ctx.createLinearGradient(
+        centerX - radius, centerY - radius,
+        centerX + radius, centerY + radius
+      );
+      rimGrad.addColorStop(0, 'rgba(56, 189, 248, 0.45)');
+      rimGrad.addColorStop(0.6, 'rgba(30, 41, 59, 0.2)');
+      rimGrad.addColorStop(1, 'rgba(15, 23, 42, 0.1)');
+
+      ctx.strokeStyle = rimGrad;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
       ctx.stroke();
 
-      rotation += 0.4;
+      rotation += 0.35;
       animationFrameId = requestAnimationFrame(render);
     };
 
     render();
-
     return () => cancelAnimationFrame(animationFrameId);
   }, [isMobile]);
 
@@ -160,8 +173,8 @@ export default function GlobeVisual() {
     let angle = 0;
 
     const orbitLoop = () => {
-      const rx = isMobile ? 130 : 180; // horizontal radius
-      const ry = isMobile ? 45 : 65;   // vertical tilt radius
+      const rx = isMobile ? 135 : 185; // horizontal radius
+      const ry = isMobile ? 48 : 68;   // vertical tilt radius
       const count = MEDIA_TOKENS.length;
 
       const updated = MEDIA_TOKENS.map((token, i) => {
@@ -170,11 +183,8 @@ export default function GlobeVisual() {
         const y = ry * Math.sin(theta);
         const z = Math.sin(theta); // -1 (back) to +1 (front)
 
-        // Depth scale: 0.7x (far) to 1.1x (near)
-        const scale = isMobile ? 0.75 + 0.25 * ((z + 1) / 2) : 0.8 + 0.35 * ((z + 1) / 2);
-        // Opacity: 0.4 (far) to 1.0 (near)
-        const opacity = 0.35 + 0.65 * ((z + 1) / 2);
-        // Z-Index: 5 for back (behind globe), 25 for front
+        const scale = isMobile ? 0.8 + 0.2 * ((z + 1) / 2) : 0.85 + 0.25 * ((z + 1) / 2);
+        const opacity = 0.4 + 0.6 * ((z + 1) / 2);
         const zIndex = z > 0 ? 30 : 5;
 
         return {
@@ -189,7 +199,7 @@ export default function GlobeVisual() {
       });
 
       setCards(updated);
-      angle += 0.008; // smooth orbit velocity
+      angle += 0.007; // gentle smooth orbit
       animId = requestAnimationFrame(orbitLoop);
     };
 
@@ -200,28 +210,28 @@ export default function GlobeVisual() {
   return (
     <div 
       ref={containerRef} 
-      className="relative flex items-center justify-center w-full max-w-[420px] md:max-w-[480px] h-[340px] md:h-[420px] mx-auto select-none"
+      className="relative flex items-center justify-center w-full max-w-[440px] md:max-w-[500px] h-[350px] md:h-[430px] mx-auto select-none"
     >
-      {/* Central 3D Digital Earth Canvas */}
+      {/* Central 3D Earth Canvas */}
       <div className="relative z-10 flex items-center justify-center">
         <canvas
           ref={canvasRef}
-          style={{ width: isMobile ? 260 : 340, height: isMobile ? 260 : 340 }}
-          className="pointer-events-none drop-shadow-[0_0_35px_rgba(6,182,212,0.3)]"
+          style={{ width: isMobile ? 270 : 350, height: isMobile ? 270 : 350 }}
+          className="pointer-events-none drop-shadow-[0_10px_35px_rgba(15,23,42,0.8)]"
         />
 
-        {/* Inner Core Center Badge */}
+        {/* Clean, Human Center Emblem */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <div className="w-9 h-9 rounded-xl bg-dark-900/90 border border-cyan-500/40 flex items-center justify-center shadow-lg shadow-cyan-500/20 backdrop-blur-md">
-            <ShieldCheck className="w-5 h-5 text-cyan-400" />
+          <div className="w-10 h-10 rounded-2xl bg-slate-900/90 border border-slate-700/60 flex items-center justify-center shadow-xl shadow-black/40 backdrop-blur-md">
+            <CheckCircle2 className="w-5 h-5 text-sky-400" />
           </div>
-          <span className="text-[9px] font-mono tracking-widest text-cyan-300 font-bold mt-1 uppercase">
+          <span className="text-[10px] tracking-wider text-slate-300 font-semibold mt-1.5 uppercase">
             Global Truth
           </span>
         </div>
       </div>
 
-      {/* Orbiting Media Information Nodes */}
+      {/* Orbiting Media Information Nodes - Human, Friendly Design */}
       {cards.map((card, idx) => {
         const Icon = card.icon;
         return (
@@ -235,16 +245,16 @@ export default function GlobeVisual() {
             }}
             className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
           >
-            <div className={`px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl glass-panel border ${card.border} ${card.bg} shadow-lg backdrop-blur-md flex items-center space-x-2 whitespace-nowrap`}>
-              <div className={`p-1 rounded-lg bg-dark-900/80 ${card.color}`}>
+            <div className={`px-3 py-2 rounded-2xl bg-slate-900/90 border ${card.border} shadow-xl shadow-black/30 backdrop-blur-md flex items-center gap-2.5 whitespace-nowrap`}>
+              <div className={`p-1.5 rounded-xl ${card.bg} ${card.color}`}>
                 <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
               <div className="flex flex-col text-left">
-                <span className="text-[11px] sm:text-xs font-bold text-white tracking-wide">
+                <span className="text-xs font-semibold text-slate-100 tracking-tight">
                   {card.label}
                 </span>
-                <span className="text-[9px] text-slate-400 font-medium">
-                  {card.tag}
+                <span className="text-[10px] text-slate-400 font-normal">
+                  {card.desc}
                 </span>
               </div>
             </div>
@@ -252,14 +262,14 @@ export default function GlobeVisual() {
         );
       })}
 
-      {/* Subtle Orbital Orbit Ring Guide (CSS 3D Ellipse) */}
+      {/* Subtle Orbital Orbit Ring */}
       <div 
         style={{
-          width: isMobile ? 260 : 360,
-          height: isMobile ? 90 : 130,
+          width: isMobile ? 270 : 370,
+          height: isMobile ? 96 : 136,
           borderRadius: '50%',
-          border: '1px dashed rgba(6, 182, 212, 0.15)',
-          transform: 'rotateX(65deg)',
+          border: '1px dashed rgba(148, 163, 184, 0.15)',
+          transform: 'rotateX(68deg)',
         }}
         className="absolute pointer-events-none"
       />

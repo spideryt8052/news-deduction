@@ -1,123 +1,85 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { 
   ShieldCheck, 
-  ArrowRight, 
-  Sparkles, 
   CheckCircle2, 
   AlertTriangle, 
-  Eye, 
   ShieldAlert,
-  Play
+  Sparkles,
+  Users,
+  MessageCircle,
+  Newspaper
 } from 'lucide-react';
 import GlobeVisual from './GlobeVisual';
+import AnalyzeBox from './AnalyzeBox';
 
-export default function HeroSection() {
+export default function HeroSection({ onAnalysisComplete }) {
   return (
-    <section className="relative overflow-hidden pt-8 pb-12 md:pt-14 md:pb-20">
+    <section className="relative overflow-hidden pt-6 pb-12 md:pt-10 md:pb-16">
       
-      {/* Background ambient lighting */}
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] sm:w-[600px] h-[350px] sm:h-[600px] bg-gradient-to-tr from-cyan-500/15 via-blue-600/10 to-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+      {/* Subtle, Warm Ambient Lighting (No harsh neon!) */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] md:w-[800px] h-[400px] md:h-[600px] bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
-        {/* Split Grid on Desktop, Stacked on Mobile */}
+        {/* Split Grid: Left = Headline & Fast Verification Bar; Right = Real-Time Earth Globe */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           
-          {/* Left / Main Text Column (7 cols on desktop) */}
-          <div className="lg:col-span-7 text-center lg:text-left space-y-6">
+          {/* Left Column (7 cols): Clean, Human Headline & Integrated Input */}
+          <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
             
-            {/* Platform Pill Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold tracking-wide uppercase shadow-inner">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>AI-Powered Misinformation Detection & Verification</span>
+            {/* Friendly Pill Badge */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-800/80 border border-slate-700/60 text-slate-300 text-xs font-medium shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Independent Fact-Checking for Everyone</span>
             </div>
 
-            {/* Main Title */}
-            <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight leading-[1.15]">
-              Think Before <br className="hidden sm:inline" />
-              <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
-                You Share.
+            {/* Clear, Human Headline (No AI buzzwords) */}
+            <h1 className="text-3xl sm:text-5xl lg:text-5xl font-extrabold text-slate-100 tracking-tight leading-[1.15]">
+              Don't forward rumors. <br className="hidden sm:inline" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-400 to-emerald-400">
+                Know the truth in seconds.
               </span>
             </h1>
 
-            {/* Subtitle */}
-            <p className="text-sm sm:text-base md:text-lg text-slate-300 max-w-2xl mx-auto lg:mx-0 font-normal leading-relaxed">
-              AI-assisted analysis for potentially misleading information. Evaluate viral social claims, news headlines, and screenshots with transparent explanations before trusting or forwarding.
+            {/* Human Subtitle */}
+            <p className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto lg:mx-0 font-normal leading-relaxed">
+              Received a shocking WhatsApp message, viral post, or suspicious link? Paste it below to see what credible journalists, fact-checkers, and official sources say.
             </p>
 
-            {/* Action CTAs with >=44px touch targets */}
-            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 pt-2">
-              <Link
-                to="/chat"
-                className="w-full sm:w-auto min-h-[48px] px-7 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white font-semibold text-sm hover:from-purple-500 hover:to-cyan-400 shadow-xl shadow-purple-500/25 transition-all hover:scale-[1.02] flex items-center justify-center gap-2"
-              >
-                <Sparkles className="w-4 h-4 text-cyan-300 animate-pulse" />
-                <span>Ask AI Anything (Chat)</span>
-              </Link>
-
-              <Link
-                to="/analyze"
-                className="w-full sm:w-auto min-h-[48px] px-7 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-sm hover:from-cyan-400 hover:to-blue-500 shadow-xl shadow-cyan-500/25 transition-all hover:scale-[1.02] flex items-center justify-center gap-2"
-              >
-                <span>Analyze Claim</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-
-              <Link
-                to="/learn"
-                className="w-full sm:w-auto min-h-[48px] px-6 py-3.5 rounded-2xl bg-dark-800/90 hover:bg-dark-700 text-slate-200 font-semibold text-sm border border-white/10 hover:border-cyan-500/30 transition-all flex items-center justify-center gap-2"
-              >
-                <span>Fact Guide</span>
-              </Link>
+            {/* The Integrated Fast Verification Search Bar */}
+            <div className="pt-2">
+              <AnalyzeBox onAnalysisComplete={onAnalysisComplete} />
             </div>
 
-            {/* 4 Classification Pillars preview */}
-            <div className="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-w-xl mx-auto lg:mx-0 text-left">
-              <div className="p-2.5 sm:p-3 rounded-xl bg-dark-800/70 border border-white/5 space-y-0.5">
-                <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-semibold">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Likely Reliable</span>
-                </div>
-                <p className="text-[10px] sm:text-[11px] text-slate-400">Verified institutional reports.</p>
+            {/* Human Trust Proof Points */}
+            <div className="pt-2 flex items-center justify-center lg:justify-start gap-6 text-xs text-slate-400 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>100% Free & Unbiased</span>
               </div>
-
-              <div className="p-2.5 sm:p-3 rounded-xl bg-dark-800/70 border border-white/5 space-y-0.5">
-                <div className="flex items-center gap-1.5 text-amber-400 text-xs font-semibold">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  <span>Misleading</span>
-                </div>
-                <p className="text-[10px] sm:text-[11px] text-slate-400">Context altered / distorted.</p>
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-sky-400" />
+                <span>Verified with Real Proof</span>
               </div>
-
-              <div className="p-2.5 sm:p-3 rounded-xl bg-dark-800/70 border border-white/5 space-y-0.5">
-                <div className="flex items-center gap-1.5 text-rose-400 text-xs font-semibold">
-                  <ShieldAlert className="w-3.5 h-3.5" />
-                  <span>Likely False</span>
-                </div>
-                <p className="text-[10px] sm:text-[11px] text-slate-400">Contradicted by evidence.</p>
-              </div>
-
-              <div className="p-2.5 sm:p-3 rounded-xl bg-dark-800/70 border border-white/5 space-y-0.5">
-                <div className="flex items-center gap-1.5 text-blue-400 text-xs font-semibold">
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>Unverified</span>
-                </div>
-                <p className="text-[10px] sm:text-[11px] text-slate-400">Awaiting corroboration.</p>
+              <div className="flex items-center gap-1.5">
+                <Users className="w-4 h-4 text-indigo-400" />
+                <span>Safe for Family & Friends</span>
               </div>
             </div>
 
           </div>
 
-          {/* Right Column: 3D Digital Earth with Orbiting Media Cards (5 cols on desktop) */}
-          <div className="lg:col-span-5 flex items-center justify-center relative mt-4 lg:mt-0">
+          {/* Right Column (5 cols): The 3D Earth Globe Visual */}
+          <div className="lg:col-span-5 flex flex-col items-center justify-center">
             <GlobeVisual />
+            <p className="text-center text-xs text-slate-400 font-medium -mt-2">
+              Cross-checking claims across global news wires & official registries
+            </p>
           </div>
 
         </div>
 
       </div>
-
     </section>
   );
 }

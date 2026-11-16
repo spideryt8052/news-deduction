@@ -82,12 +82,18 @@ export default function ResultCard({ result, onReset }) {
   const theme = CLASSIFICATION_THEMES[classification] || CLASSIFICATION_THEMES['Needs Further Verification'];
 
   const handleCopy = () => {
-    const textToCopy = `TruthShield Assessment: ${classification} (${Math.round(confidence * 100)}% Confidence)
+    const textToCopy = `TruthShield Fact-Check: ${classification} (${Math.round(confidence * 100)}% Confidence)
 Claim: "${displayClaim}"
-Recommendation: ${displayRecommendation}`;
+Reality: ${displayRecommendation}`;
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleShareWhatsApp = () => {
+    const statusEmoji = classification === 'Likely Reliable' ? '✅' : classification === 'Likely False' ? '❌' : '⚠️';
+    const text = `*TruthShield Fact-Check Alert* ${statusEmoji}\n\n*Status:* ${classification}\n*Claim:* "${displayClaim}"\n*Verified Facts:* ${displayRecommendation}\n\nCheck full verification details on TruthShield: ${window.location.origin}`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const handleToggleVoiceReport = () => {
@@ -354,8 +360,17 @@ Recommendation: ${displayRecommendation}`;
             </div>
 
             <button
+              onClick={handleShareWhatsApp}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-medium transition-all cursor-pointer"
+              title="Share fact-check on WhatsApp to warn others"
+            >
+              <Share2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Share Warning</span>
+            </button>
+
+            <button
               onClick={handleCopy}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-700 text-xs text-slate-300 border border-white/5 transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 transition-all cursor-pointer"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copied ? 'Copied' : 'Copy'}</span>
