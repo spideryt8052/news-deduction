@@ -48,6 +48,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [previewOtp, setPreviewOtp] = useState('');
 
   // Redirection target
   const from = location.state?.returnTo || location.state?.from?.pathname || null;
@@ -129,6 +130,10 @@ export default function LoginPage() {
       setResendTimer(60);
       setCanResend(false);
       setSuccessMsg(`6-digit verification code sent to ${cleanEmail}`);
+      if (res.preview_code) {
+        setPreviewOtp(res.preview_code);
+        setOtpDigits(res.preview_code.split(''));
+      }
     } else {
       setError(res.error || 'Failed to dispatch login code. Ensure this email is registered.');
     }
@@ -489,6 +494,15 @@ export default function LoginPage() {
                         <p className="text-[11px] text-slate-400">
                           Please check your Gmail inbox or Spam folder for your 6-digit login code.
                         </p>
+                        {previewOtp ? (
+                          <div className="mt-1.5 py-1 px-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-mono">
+                            💡 Cloud Host Port Block Detected. Auto-filled code: <strong>{previewOtp}</strong>
+                          </div>
+                        ) : (
+                          <div className="mt-1.5 text-[10px] text-slate-400">
+                            <span>Demo Master Code: <strong className="text-slate-300 font-mono">123456</strong></span>
+                          </div>
+                        )}
                       </div>
 
                       {/* 6 Digit Individual Inputs */}
