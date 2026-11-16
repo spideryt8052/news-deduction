@@ -51,11 +51,11 @@ class Settings(BaseSettings):
     # AI Engine Provider: "auto", "groq", "gemini", "openai", "anthropic", or "mock"
     AI_PROVIDER: str = "auto"
     
-    # Keys from .env (with verified resilient Gemini fallback)
+    # Keys from .env
     API_KEY: str = ""
     OPENAI_API_KEY: str = ""
     GROQ_API_KEY: str = ""
-    GEMINI_API_KEY: str = "AIzaSyBK7iZChk8LAK_xUdIhqmdJbXxwH0u8GS0"
+    GEMINI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
     
     # Model selections
@@ -66,11 +66,11 @@ class Settings(BaseSettings):
     AI_REQUEST_TIMEOUT: int = 20  # seconds
     
     # SMTP / Gmail Configuration for Real Email OTP Dispatch
-    SMTP_HOST: str = "smtp.gmail.com"
-    SMTP_PORT: int = 587
-    SMTP_USER: str = os.getenv("SMTP_USER", "yaseenbrp25@gmail.com")
-    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "giqwbjtxjnkkszii")
-    SMTP_FROM: str = os.getenv("SMTP_FROM", "TruthShield Verification <yaseenbrp25@gmail.com>")
+    SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USER: str = os.getenv("SMTP_USER", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+    SMTP_FROM: str = os.getenv("SMTP_FROM", "")
 
     # HTTP-based Email APIs (Critical for Render Free Tier which blocks raw SMTP ports 587/465)
     RESEND_API_KEY: str = ""

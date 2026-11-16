@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.config import settings
+from app.core.security_middleware import SecurityHeadersMiddleware, RateLimitMiddleware
 from app.database.session import init_db, SessionLocal
 from app.services.db_service import DatabaseService
 from app.api.routes_analyze import router as analyze_router
@@ -74,11 +75,15 @@ for _o in settings.CORS_ORIGINS:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|.*\.vercel\.app|.*\.onrender\.com)(:\d+)?$",
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|[a-zA-Z0-9-]+\.vercel\.app|[a-zA-Z0-9-]+\.onrender\.com)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Enterprise Security Headers (OWASP) & Anti-Abuse Rate Limiting
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware)
 
 
 # Custom Exception Handlers
@@ -106,12 +111,13 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
+    import logging
+    logging.getLogger("app.main").exception("Unhandled server exception on %s: %s", request.url.path, exc)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             "error": "Internal Server Error",
-            "message": "The verification pipeline encountered an unexpected issue. Please retry.",
-            "detail": str(exc)
+            "message": "The system encountered an unexpected issue while processing your request. Please try again shortly."
         }
     )
 
