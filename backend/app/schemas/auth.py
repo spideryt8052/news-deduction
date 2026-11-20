@@ -56,6 +56,8 @@ class SendOtpResponse(BaseModel):
     message: str
     email: str
     expires_in_seconds: int = 600
+    email_sent: Optional[bool] = True
+    cloud_notice_code: Optional[str] = None
 
 class VerifyOtpRegisterRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=100, description="Full Name of User")

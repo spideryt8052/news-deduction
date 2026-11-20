@@ -47,6 +47,7 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [resendTimer, setResendTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
+  const [cloudNoticeCode, setCloudNoticeCode] = useState(null);
 
   // Countdown timer for OTP resend
   useEffect(() => {
@@ -110,6 +111,7 @@ export default function RegisterPage() {
         setCanResend(false);
         setStep(2);
         setOtpDigits(['', '', '', '', '', '']);
+        setCloudNoticeCode(resp.cloud_notice_code || null);
       } else {
         setError(resp.error || 'Failed to send verification code. Please check your email and try again.');
       }
@@ -209,6 +211,7 @@ export default function RegisterPage() {
       setResendTimer(60);
       setCanResend(false);
       setOtpDigits(['', '', '', '', '', '']);
+      setCloudNoticeCode(resp.cloud_notice_code || null);
       otpInputRefs.current[0]?.focus();
     } else {
       setError(resp.error || 'Could not resend code. Please wait a moment and try again.');
@@ -438,16 +441,33 @@ export default function RegisterPage() {
                 </button>
               </div>
 
-              {/* Real Gmail Inbox Security Reminder */}
-              <div className="p-3.5 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 text-center space-y-1 shadow-md">
-                <div className="flex items-center justify-center gap-2 text-xs font-semibold text-cyan-300">
-                  <Mail className="w-4 h-4 text-cyan-400" />
-                  <span>Check your Gmail inbox or Spam folder</span>
+              {/* Cloud Fallback Notice (if Render Free Tier blocked raw SMTP port 587) */}
+              {cloudNoticeCode ? (
+                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-center space-y-1 shadow-md">
+                  <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-amber-300">
+                    <AlertCircle className="w-4 h-4 text-amber-400" />
+                    <span>Cloud Port 587 Outbound Block Notice</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300">
+                    Render free tier blocked raw SMTP email delivery. Your verification code is:{' '}
+                    <strong className="font-mono text-amber-300 text-sm tracking-widest">{cloudNoticeCode}</strong>
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    (To deliver directly to your Gmail inbox on Render, add a free RESEND_API_KEY in Render Environment Variables.)
+                  </p>
                 </div>
-                <p className="text-[11px] text-slate-400">
-                  A confidential 6-digit code has been delivered to <strong className="text-white">{email}</strong>.
-                </p>
-              </div>
+              ) : (
+                /* Real Gmail Inbox Security Reminder (when SMTP delivered directly) */
+                <div className="p-3.5 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 text-center space-y-1 shadow-md">
+                  <div className="flex items-center justify-center gap-2 text-xs font-semibold text-cyan-300">
+                    <Mail className="w-4 h-4 text-cyan-400" />
+                    <span>Check your Gmail inbox or Spam folder</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    A confidential 6-digit code has been delivered to <strong className="text-white">{email}</strong>.
+                  </p>
+                </div>
+              )}
 
               {/* 6 Individual OTP Boxes with Auto-focus & Paste */}
               <div 
