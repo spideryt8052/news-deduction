@@ -76,7 +76,7 @@ class OtpService:
             logger.error(f"❌ [TruthShield OTP] Email dispatch failed to {clean_email}: {error_msg}")
             return {
                 "success": False,
-                "message": f"Could not send verification code to {clean_email}. Please ensure your email is correct and try again.",
+                "message": f"Could not send verification code ({error_msg}). Please try again shortly.",
                 "email": clean_email,
                 "expires_in_seconds": 0
             }

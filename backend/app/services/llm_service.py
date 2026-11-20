@@ -126,7 +126,7 @@ class LLMService:
                 return settings.GEMINI_API_KEY.strip()
             if settings.API_KEY and (settings.API_KEY.startswith("AIzaSy") or settings.AI_PROVIDER == "gemini"):
                 return settings.API_KEY.strip()
-            return os.environ.get("GEMINI_API_KEY") or (os.environ.get("API_KEY") if os.environ.get("API_KEY", "").startswith("AIzaSy") else None)
+            return os.environ.get("GEMINI_API_KEY") or (os.environ.get("API_KEY") if os.environ.get("API_KEY", "").startswith("AIzaSy") else getattr(settings, "GEMINI_API_KEY", None))
 
         elif provider == "openai":
             if settings.OPENAI_API_KEY:
