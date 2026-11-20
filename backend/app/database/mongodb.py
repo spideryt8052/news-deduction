@@ -19,6 +19,7 @@ _client: Optional[MongoClient] = None
 _db: Optional[Database] = None
 _is_connected: bool = False
 _connection_status: str = "initializing"
+_last_connect_attempt: float = 0
 
 # In-memory document fallback store used when MongoDB Atlas is connecting or offline
 _in_memory_store: Dict[str, List[Dict[str, Any]]] = {
@@ -58,7 +59,21 @@ def init_mongodb() -> Database:
     Initializes connection to MongoDB (MongoDB Atlas or Local MongoDB).
     Sets up required collections and unique indexes.
     """
-    global _client, _db, _is_connected, _connection_status
+    global _client, _db, _is_connected, _connection_status, _last_connect_attempt
+
+    if os.environ.get("USE_IN_MEMORY_DB", "").lower() in ("true", "1"):
+        _is_connected = False
+        _connection_status = "fallback (In-Memory MongoDB Driver Active)"
+        _seed_in_memory_accounts()
+        return None
+
+    if _is_connected and _db is not None:
+        return _db
+
+    now = time.time()
+    if not _is_connected and (now - _last_connect_attempt) < 30 and _last_connect_attempt > 0:
+        return None
+    _last_connect_attempt = now
 
     uri = get_mongodb_uri()
     db_name = get_mongodb_db_name()
@@ -66,12 +81,12 @@ def init_mongodb() -> Database:
     logger.info(f"Connecting to MongoDB at: {uri.split('@')[-1] if '@' in uri else uri[:25]} (Database: {db_name})")
 
     try:
-        # Connect with 3-second server selection timeout
+        # Connect with 1-second server selection timeout
         client = MongoClient(
             uri,
-            serverSelectionTimeoutMS=3000,
-            connectTimeoutMS=3000,
-            socketTimeoutMS=5000,
+            serverSelectionTimeoutMS=1000,
+            connectTimeoutMS=1000,
+            socketTimeoutMS=2000,
             retryWrites=True
         )
 

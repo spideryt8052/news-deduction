@@ -182,6 +182,10 @@ class MongoQuery:
 
             instance = self.model_class(**model_attrs)
 
+            # Register instance with session for change tracking
+            if self.session is not None:
+                self.session.track(instance)
+
             # Re-attach child relationships
             if reasons_data is not None:
                 from app.models.models import AnalysisReasonModel
@@ -225,7 +229,10 @@ class MongoQuery:
                 def __init__(self, **kwargs):
                     for k, v in kwargs.items():
                         setattr(self, k, v)
-            return DynamicModel(**clean)
+            dyn_inst = DynamicModel(**clean)
+            if self.session is not None:
+                self.session.track(dyn_inst)
+            return dyn_inst
 
 
 class MongoSession:
@@ -234,13 +241,20 @@ class MongoSession:
     def __init__(self):
         self._pending_add: List[Any] = []
         self._pending_delete: List[Any] = []
+        self._tracked: List[Any] = []
 
     def query(self, model_class: Type) -> MongoQuery:
         return MongoQuery(model_class, self)
 
+    def track(self, instance: Any):
+        if instance is not None and instance not in self._tracked:
+            self._tracked.append(instance)
+
     def add(self, instance: Any):
         if instance not in self._pending_add:
             self._pending_add.append(instance)
+        if instance not in self._tracked:
+            self._tracked.append(instance)
 
     def delete(self, instance: Any):
         if instance not in self._pending_delete:
@@ -265,8 +279,24 @@ class MongoSession:
 
         self._pending_delete.clear()
 
-        # Process Additions / Updates
-        for instance in self._pending_add:
+        # Process Additions / Updates (both explicitly added and tracked instances)
+        # Keyed by instance id so the latest modified instance wins and pending_add takes priority
+        instances_by_id = {}
+        for inst in self._tracked:
+            inst_id = getattr(inst, "id", None)
+            if inst_id and inst not in self._pending_delete:
+                instances_by_id[inst_id] = inst
+
+        for inst in self._pending_add:
+            inst_id = getattr(inst, "id", None)
+            if inst_id:
+                instances_by_id[inst_id] = inst
+            else:
+                instances_by_id[id(inst)] = inst
+
+        instances_to_save = list(instances_by_id.values())
+
+        for instance in instances_to_save:
             coll_name = getattr(instance, "__tablename__", "items")
             
             # Ensure instance has an ID
@@ -327,6 +357,7 @@ class MongoSession:
             _in_memory_store[coll_name] = store
 
         self._pending_add.clear()
+        self._tracked.clear()
 
     def refresh(self, instance: Any):
         inst_id = getattr(instance, "id", None)
@@ -360,10 +391,12 @@ class MongoSession:
     def rollback(self):
         self._pending_add.clear()
         self._pending_delete.clear()
+        self._tracked.clear()
 
     def close(self):
         self._pending_add.clear()
         self._pending_delete.clear()
+        self._tracked.clear()
 
 
 def get_db():

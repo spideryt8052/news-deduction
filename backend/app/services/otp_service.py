@@ -77,7 +77,7 @@ class OtpService:
             return {
                 "success": True,
                 "email_sent": False,
-                "message": f"Cloud notice: Outbound mail port blocked by cloud host ({error_msg}). Your verification code is provided below to complete signup.",
+                "message": f"Cloud verification notice: {error_msg}. Your verification code is provided below to proceed.",
                 "email": clean_email,
                 "expires_in_seconds": ttl,
                 "cloud_notice_code": otp
@@ -210,6 +210,11 @@ class OtpService:
         except urllib.error.HTTPError as e:
             err_data = e.read().decode("utf-8", errors="ignore")
             logger.error(f"Resend API Error ({e.code}): {err_data}")
+            if "verify a domain" in err_data.lower() or "only send testing emails" in err_data.lower():
+                return False, (
+                    "Resend free test domain (onboarding@resend.dev) only delivers emails to your registered Resend account email. "
+                    "For new users, verify your domain in Resend (resend.com/domains) or use BREVO_API_KEY."
+                )
             return False, f"Resend API Error: {err_data}"
         except Exception as e:
             logger.error(f"Resend Connection Error: {e}")
@@ -312,6 +317,13 @@ class OtpService:
             intro_text = (
                 "Welcome to TruthShield! To confirm that you are an authorized person, "
                 "please enter the 6-digit verification code below in your registration window."
+            )
+        elif purpose == "reset_password":
+            subject = f"TruthShield - Your Password Reset Code: {otp}"
+            headline = "Reset Your Account Password"
+            intro_text = (
+                "We received a request to reset the password for your TruthShield account. "
+                "Enter the 6-digit verification code below to set a new password."
             )
         else:
             subject = f"TruthShield - Your 6-Digit Login Code: {otp}"

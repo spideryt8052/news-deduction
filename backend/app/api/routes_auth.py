@@ -17,7 +17,9 @@ from app.schemas.auth import (
     SendOtpRequest,
     SendOtpResponse,
     VerifyOtpRegisterRequest,
-    VerifyOtpLoginRequest
+    VerifyOtpLoginRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest
 )
 from app.services.otp_service import OtpService
 from app.core.security import hash_password, verify_password, create_access_token
@@ -32,20 +34,30 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 )
 async def send_email_otp(payload: SendOtpRequest, db: Session = Depends(get_db)):
     email_clean = payload.email.strip().lower()
+    is_new = False
     
     if payload.purpose == "register":
         existing = db.query(UserModel).filter(UserModel.email == email_clean).first()
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="An account with this email address already exists. Please log in instead."
+                detail="An account with this email address already exists. Please log in or reset your password."
             )
-    elif payload.purpose == "login":
+    elif payload.purpose in ["login", "signin"]:
+        existing = db.query(UserModel).filter(UserModel.email == email_clean).first()
+        if not existing:
+            is_new = True
+        elif not existing.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This account has been deactivated by an administrator."
+            )
+    elif payload.purpose == "reset_password":
         existing = db.query(UserModel).filter(UserModel.email == email_clean).first()
         if not existing:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="No account found with this email. Please sign up first."
+                detail="No registered account found with this email. Please check your email or create a new account."
             )
         if not existing.is_active:
             raise HTTPException(
@@ -59,6 +71,7 @@ async def send_email_otp(payload: SendOtpRequest, db: Session = Depends(get_db))
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=result.get("message") or "Failed to send email verification code."
         )
+    result["is_new_user"] = is_new
     return SendOtpResponse(**result)
 
 @router.post(
@@ -133,12 +146,113 @@ async def register_with_otp(payload: VerifyOtpRegisterRequest, db: Session = Dep
 async def login_with_otp(payload: VerifyOtpLoginRequest, db: Session = Depends(get_db)):
     email_clean = payload.email.strip().lower()
 
+    # 1. Verify OTP (accept purpose="login" or generic)
     valid, message = OtpService.verify_otp(email_clean, payload.otp, expected_purpose="login")
     if not valid:
+        valid2, _ = OtpService.verify_otp(email_clean, payload.otp, expected_purpose=None)
+        if not valid2:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=message
+            )
+
+    # 2. Check if user already exists
+    user = db.query(UserModel).filter(UserModel.email == email_clean).first()
+    if not user:
+        # Seamless Passwordless Auto-Registration for new users!
+        user_count = db.query(UserModel).count()
+        assigned_role = "admin" if user_count == 0 else "user"
+        username_part = email_clean.split("@")[0].replace(".", " ").replace("_", " ").title()
+
+        user = UserModel(
+            id=str(uuid.uuid4()),
+            name=username_part if username_part else "TruthShield User",
+            email=email_clean,
+            password_hash=None,
+            role=assigned_role,
+            is_active=True,
+            created_at=datetime.datetime.utcnow()
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account has been deactivated by an administrator."
+        )
+
+    token = create_access_token({
+        "sub": user.id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role
+    })
+
+    return AuthResponse(
+        access_token=token,
+        token_type="bearer",
+        user=UserResponse(
+            id=user.id,
+            name=user.name,
+            email=user.email,
+            role=user.role,
+            is_active=user.is_active,
+            created_at=user.created_at.isoformat() if user.created_at else datetime.datetime.utcnow().isoformat()
+        )
+    )
+
+@router.post(
+    "/forgot-password",
+    response_model=SendOtpResponse,
+    summary="Dispatch password reset OTP verification code"
+)
+async def forgot_password_request(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    email_clean = payload.email.strip().lower()
+    user = db.query(UserModel).filter(UserModel.email == email_clean).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No account found with this email address. Please check your spelling or sign up."
+        )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account has been deactivated by an administrator."
+        )
+
+    result = OtpService.create_and_send_otp(email_clean, purpose="reset_password")
+    if not result.get("success", False):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=message
+            detail=result.get("message") or "Failed to dispatch password reset code."
         )
+    result["is_new_user"] = False
+    return SendOtpResponse(**result)
+
+@router.post(
+    "/reset-password",
+    response_model=AuthResponse,
+    summary="Verify OTP and reset account password"
+)
+async def reset_password_with_otp(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    email_clean = payload.email.strip().lower()
+
+    if len(payload.new_password) < 4:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be at least 4 characters long."
+        )
+
+    valid, message = OtpService.verify_otp(email_clean, payload.otp, expected_purpose="reset_password")
+    if not valid:
+        valid2, _ = OtpService.verify_otp(email_clean, payload.otp, expected_purpose=None)
+        if not valid2:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=message
+            )
 
     user = db.query(UserModel).filter(UserModel.email == email_clean).first()
     if not user:
@@ -152,6 +266,12 @@ async def login_with_otp(payload: VerifyOtpLoginRequest, db: Session = Depends(g
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This account has been deactivated by an administrator."
         )
+
+    # Securely hash and update password
+    user.password_hash = hash_password(payload.new_password)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
 
     token = create_access_token({
         "sub": user.id,
@@ -247,6 +367,16 @@ async def login_user(payload: UserLoginRequest, db: Session = Depends(get_db)):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This account has been deactivated by an administrator."
         )
+
+    # Auto-upgrade plaintext or non-PBKDF2 hash to PBKDF2 on successful login
+    if user.password_hash and not user.password_hash.startswith("pbkdf2:sha256:"):
+        try:
+            user.password_hash = hash_password(payload.password)
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        except Exception:
+            pass
 
     token = create_access_token({
         "sub": user.id,

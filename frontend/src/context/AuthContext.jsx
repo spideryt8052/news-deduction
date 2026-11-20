@@ -95,6 +95,29 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const forgotPassword = async (email) => {
+    try {
+      const resp = await api.forgotPassword(email);
+      return { success: true, ...resp };
+    } catch (err) {
+      const message = formatApiError(err);
+      return { success: false, error: message };
+    }
+  };
+
+  const resetPassword = async (email, otp, newPassword) => {
+    try {
+      const resp = await api.resetPassword(email, otp, newPassword);
+      setAuthToken(resp.access_token);
+      setTokenState(resp.access_token);
+      setUser(resp.user);
+      return { success: true, user: resp.user };
+    } catch (err) {
+      const message = formatApiError(err);
+      return { success: false, error: message };
+    }
+  };
+
   const logout = () => {
     clearAuthToken();
     setTokenState(null);
@@ -123,6 +146,8 @@ export function AuthProvider({ children }) {
     sendOtp,
     registerWithOtp,
     loginWithOtp,
+    forgotPassword,
+    resetPassword,
     logout,
     refreshUser,
   };

@@ -281,7 +281,16 @@ export default function RegisterPage() {
           {error && (
             <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-start gap-3 animate-shake">
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-              <div className="flex-1 leading-relaxed">{error}</div>
+              <div className="flex-1 leading-relaxed">
+                {error}
+                {error.toLowerCase().includes('already exists') && (
+                  <div className="mt-2 pt-2 border-t border-red-500/20">
+                    <Link to="/login" className="text-cyan-300 font-bold hover:underline inline-flex items-center gap-1">
+                      <span>This email is registered. Click here to sign in</span> &rarr;
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

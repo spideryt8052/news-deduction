@@ -49,7 +49,7 @@ class AdminStatsResponse(BaseModel):
 
 class SendOtpRequest(BaseModel):
     email: str = Field(..., min_length=5, max_length=255, description="Target email address")
-    purpose: Optional[str] = Field("register", description="'register' or 'login'")
+    purpose: Optional[str] = Field("register", description="'register', 'login', 'reset_password'")
 
 class SendOtpResponse(BaseModel):
     success: bool
@@ -58,6 +58,7 @@ class SendOtpResponse(BaseModel):
     expires_in_seconds: int = 600
     email_sent: Optional[bool] = True
     cloud_notice_code: Optional[str] = None
+    is_new_user: Optional[bool] = False
 
 class VerifyOtpRegisterRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=100, description="Full Name of User")
@@ -67,5 +68,13 @@ class VerifyOtpRegisterRequest(BaseModel):
     role: Optional[str] = Field("user", description="Requested role")
 
 class VerifyOtpLoginRequest(BaseModel):
-    email: str = Field(..., min_length=5, max_length=255, description="Registered Email")
+    email: str = Field(..., min_length=5, max_length=255, description="Registered or new email")
     otp: str = Field(..., min_length=4, max_length=10, description="6-digit verification code")
+
+class ForgotPasswordRequest(BaseModel):
+    email: str = Field(..., min_length=5, max_length=255, description="Registered account email")
+
+class ResetPasswordRequest(BaseModel):
+    email: str = Field(..., min_length=5, max_length=255, description="Registered account email")
+    otp: str = Field(..., min_length=4, max_length=10, description="6-digit reset verification code")
+    new_password: str = Field(..., min_length=4, max_length=100, description="New account password")
